@@ -1,5 +1,7 @@
 **assets/php/helper/repair-helper/in_house_repair_submit.php** (modified)
 <?php
+ob_clean(); // Clean any unexpected output
+echo json_encode($response);
 include '../../../../config/dbconnect.php';
 // Include helpers for sending email/SMS and getting company settings
 include '../payment-helper/send_email.php';

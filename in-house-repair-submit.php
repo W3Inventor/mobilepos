@@ -304,17 +304,18 @@ input[type=number] {
                             <div class="mb-4">
                                 <label class="form-label d-block">Bill Type</label>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" id="print_radio" name="bill_type" value="print" checked>
-                                    <label class="form-check-label" for="print_radio">Print</label>
+                                <input class="form-check-input" type="radio" name="bill_type" value="print" id="print_radio" checked>
+                                <label for="print_radio" class="form-check-label">Print</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" id="sms_radio" name="bill_type" value="sms">
-                                    <label class="form-check-label" for="sms_radio">SMS</label>
+                                <input class="form-check-input" type="radio" name="bill_type" value="sms" id="sms_radio">
+                                <label for="sms_radio" class="form-check-label">SMS</label>
                                 </div>
                                 <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" id="email_radio" name="bill_type" value="email">
-                                    <label class="form-check-label" for="email_radio">Email</label>
+                                <input class="form-check-input" type="radio" name="bill_type" value="email" id="email_radio">
+                                <label for="email_radio" class="form-check-label">Email</label>
                                 </div>
+
                             </div>
                         </div>
                     </div>

@@ -1,9 +1,6 @@
-**assets/php/helper/repair-helper/in_house_repair_submit.php** (modified)
 <?php
-ob_clean(); // Clean any unexpected output
-echo json_encode($response);
 include '../../../../config/dbconnect.php';
-// Include helpers for sending email/SMS and getting company settings
+// Include helpers for email, SMS, and settings (reused from POS)
 include '../payment-helper/send_email.php';
 include '../payment-helper/send_sms.php';
 include '../setting-helper/settings_helper.php';
@@ -12,7 +9,7 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 header('Content-Type: application/json');
 
-// Collect form data
+// 1. Collect form data (existing functionality)
 $nic           = $_POST['nic'] ?? '';
 $full_name     = $_POST['full_name'] ?? '';
 $mobile_number = $_POST['mobile_number'] ?? '';
@@ -26,14 +23,14 @@ $estimate_price= $_POST['estimate_amount'] ?? 0;
 $uploadedImagePaths = $_POST['uploaded_image_paths'] ?? '';
 $bill_type     = $_POST['bill_type'] ?? '';  // New: get the selected bill type
 
-// Process uploaded image paths
+// Process uploaded image paths into a single string (existing functionality)
 $image_urls   = array_filter(array_map('trim', explode(',', $uploadedImagePaths)));
 $images_column = !empty($image_urls) ? implode(',', $image_urls) : null;
 
-$response = [];  // prepare response array
+$response = [];
 $conn->begin_transaction();
 try {
-    // 1. Check if customer exists
+    // 2. Ensure customer exists (insert if new – existing functionality)
     $stmt = $conn->prepare(
         "SELECT customer_id FROM customers 
          WHERE nic = ? OR email = ? OR mobile_number = ? LIMIT 1"
@@ -44,7 +41,6 @@ try {
     $stmt->fetch();
     $stmt->close();
 
-    // 2. Insert new customer if not found
     if (empty($customer_id)) {
         $stmt = $conn->prepare(
             "INSERT INTO customers (nic, full_name, mobile_number, email, address) 
@@ -58,7 +54,7 @@ try {
         $stmt->close();
     }
 
-    // 3. Insert repair record
+    // 3. Insert the new in-house repair record (existing functionality)
     $technician_id = null;
     $status = 'Pending';
     $stmt = $conn->prepare(
@@ -74,58 +70,54 @@ try {
     if (!$stmt->execute()) {
         throw new Exception("Failed to insert repair details: " . $stmt->error);
     }
-    $repair_id = $stmt->insert_id;      // New: get the new repair record ID
+    $repair_id = $stmt->insert_id;
     $stmt->close();
+    $conn->commit();  // Save the transaction
 
-    // Commit the transaction (repair saved successfully)
-    $conn->commit();
-
-    // --- Trigger post-save actions based on bill_type ---
-    // Prepare a repair reference number (e.g., "Rep0005")
-    $repair_number = 'Rep' . str_pad($repair_id, 4, '0', STR_PAD_LEFT);
-    // Base URL for links (if needed in SMS/email)
+    // 4. Post-save actions based on selected bill_type
+    $repair_number = 'Rep' . str_pad($repair_id, 4, '0', STR_PAD_LEFT);  // e.g., "Rep0005"
     $domain   = $_SERVER['HTTP_HOST'];
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? "https" : "http";
     $base_url = "$protocol://$domain";
 
-    // 4.A: Print – generate PDF invoice for the repair
+    // 4A. If Print selected: generate PDF and provide URL for printing
     if ($bill_type === 'print') {
-        // Point to a new PDF-generation script with the repair ID
+        // Use a PDF generator script (similar to POS's generate_pdf.php):contentReference[oaicite:8]{index=8}
         $response['redirect'] = "assets/php/helper/repair-helper/generate_repair_pdf.php?repair_id=$repair_id";
     }
 
-    // 4.B: SMS – send repair info via SMS (if mobile number is provided)
+    // 4B. If SMS selected: send SMS notification to customer
     if ($bill_type === 'sms' && !empty($mobile_number)) {
-        // Compose an SMS message with repair details (e.g., acknowledgment and repair ID)
-        $sms_message = "Thank you for your repair request! Your Repair ID is $repair_number. We will contact you when it is ready. - $full_name";
-        // (Include more info or link if applicable. No external link included since a view page is not defined here.)
+        // Prepare SMS message (e.g., confirmation with Repair ID)
+        $sms_message = "Thank you for your repair request! Your Repair ID is $repair_number. "
+                     . "We will contact you when it is ready.";
+        $sms_result = sendSms($mobile_number, $sms_message);  // sendSms from included helper
 
-        $sms_result = sendSms($mobile_number, $sms_message);
-        // Check SMS API response for success (mirror logic from POS)
-        $sms_success_messages = [
+        // Mirror POS logic to interpret SMS API response:contentReference[oaicite:9]{index=9}:contentReference[oaicite:10]{index=10}
+        $sms_success_patterns = [
             "OK:1-MSG_GSM-99 Uploaded_Successfully",
             "OK:1-MSG_GSM-71 Uploaded_Successfully"
         ];
-        $is_sms_successful = false;
-        foreach ($sms_success_messages as $success_msg) {
-            if (isset($sms_result['error']) && strpos($sms_result['error'], $success_msg) !== false) {
-                $is_sms_successful = true;
+        $is_sms_success = false;
+        foreach ($sms_success_patterns as $pattern) {
+            if (isset($sms_result['error']) && strpos($sms_result['error'], $pattern) !== false) {
+                $is_sms_success = true;
                 break;
             }
         }
-        if ($is_sms_successful) {
+        if ($is_sms_success) {
             $response['sms_success'] = 'SMS sent successfully.';
-        } elseif (isset($sms_result['success'])) {
-            $response['sms_success'] = $sms_result['success'];
+        } elseif (!empty($sms_result['success'])) {
+            $response['sms_success'] = $sms_result['success'];  // e.g., "SMS sent successfully!" from helper
         } else {
-            // If no known success pattern, treat as error
+            // Treat any other outcome as error
             $response['sms_error'] = $sms_result['error'] ?? 'SMS sending failed.';
         }
     }
 
-    // 4.C: Email – send an invoice/receipt via email
+    // 4C. If Email selected: send an email with repair invoice/confirmation
     if ($bill_type === 'email' && !empty($email)) {
-        // Load company settings for email content (logo, name, etc.)
+        // Fetch company settings for branding the email (logo, name, etc.)
         $settings     = getSettings();
         $company_name = $settings['company_name'];
         $address1     = $settings['address_line1'];
@@ -136,9 +128,9 @@ try {
         $contact_phone= $settings['mobile'];
         $logo_path    = $settings['logo_path'];
 
-        // Email subject and introduction
+        // Email subject 
         $subject = "Your Repair Ticket from $company_name (Repair #$repair_number)";
-        // Build an HTML email body with repair details (similar structure to invoice email)
+        // Begin building an HTML email body (modeled after the POS invoice email):contentReference[oaicite:11]{index=11}:contentReference[oaicite:12]{index=12}
         $body  = "<!DOCTYPE html><html><head><meta charset='UTF-8'>";
         $body .= "<style>
                     body { font-family: Arial, sans-serif; color: #333; }
@@ -149,9 +141,10 @@ try {
                     .section-title { color: $brand_color; font-size: 16px; margin-top: 20px; font-weight: bold; }
                     .detail-section p { margin: 4px 0; }
                   </style></head><body>";
-        // Company header with logo and address
+        // Company header (logo and address)
         $body .= "<div class='company-header'>";
         if (!empty($logo_path)) {
+            // Embed logo image from server
             $body .= "<img src='{$base_url}/$logo_path' alt='{$company_name} Logo'><br>";
         }
         $body .= "<h1>" . htmlspecialchars($company_name) . "</h1>";
@@ -161,7 +154,8 @@ try {
         $body .= "</p>";
         $body .= "<p>Phone: " . htmlspecialchars($contact_phone);
         if (!empty($website)) {
-            $body .= " | Website: <a href='" . htmlspecialchars($website) . "'>" . htmlspecialchars($website) . "</a>";
+            $body .= " | Website: <a href='" . htmlspecialchars($website) . "'>" 
+                  . htmlspecialchars($website) . "</a>";
         }
         $body .= "</p></div>";
         // Repair details section
@@ -176,7 +170,7 @@ try {
         $body .= "<p>Phone: " . htmlspecialchars($mobile_number) . "</p>";
         if (!empty($email))  $body .= "<p>Email: " . htmlspecialchars($email) . "</p>";
         $body .= "<p>Address: " . htmlspecialchars($address) . "</p></div>";
-        // Device/Repair details section
+        // Device/Issue details section
         $body .= "<div class='detail-section'><p class='section-title'>Device Details</p>";
         $body .= "<p>Brand: " . htmlspecialchars($brand) . "</p>";
         $body .= "<p>Model: " . htmlspecialchars($phone_model) . "</p>";
@@ -184,27 +178,28 @@ try {
         $body .= "<p>Issue: " . htmlspecialchars($reason) . "</p>";
         $body .= "<p>Estimated Cost: LKR " . number_format((float)$estimate_price, 2) . "</p></div>";
         // Footer note
-        $body .= "<p>If you have any questions, feel free to contact us. Thank you for choosing $company_name!</p>";
+        $body .= "<p>If you have any questions, feel free to contact us. "
+              . "Thank you for choosing $company_name!</p>";
         $body .= "</body></html>";
 
-        // Send the email
+        // Send the email (using sendEmail helper)
         $email_sent = sendEmail($email, $subject, $body);
         if (!$email_sent) {
             $response['email_error'] = 'Failed to send email.';
         } else {
-            // Indicate success (record saved and email sent)
+            // Indicate success if email was sent (record already saved above)
             $response['success'] = 'Repair record saved successfully and Email sent to customer.';
         }
     }
 
-    // If no specific action was taken (fallback)
+    // 5. Default success message if no specific bill_type action was triggered
     if (empty($response)) {
         $response['success'] = 'Repair record has been added successfully.';
     }
 } catch (Exception $e) {
     $conn->rollback();
-    // On error, respond with error message
     $response['error'] = 'Transaction failed: ' . $e->getMessage();
 }
 $conn->close();
 echo json_encode($response);
+?>

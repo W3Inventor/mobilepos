@@ -361,7 +361,16 @@ input[type=number] {
 
     
 <script>
-    $(document).ready(function () {
+        $(document).ready(function () {
+        // Clear all input fields
+        $('#clearCustomerDetails').on('click', function () {
+        
+            $('#customerdetails input[type="text"], #customerdetails input[type="email"], #customerdetails input[type="tel"]').val('');
+
+            // Hide any error messages
+            $('#nic-error').hide();
+        });
+
         // 1. Initialize Brand Dropdown with Select2
         $('#brand_name').select2({
             tags: true,
@@ -403,13 +412,13 @@ input[type=number] {
             }
         });
 
-        // 4. NIC Validation
-        $('#nic').on('input', function () {
-            const pattern = /^(?:\d{9}[VvXx]|\d{12})$/;
-            const isValid = pattern.test(this.value);
-            $('#nic-error').toggle(!isValid);
-            this.setCustomValidity(isValid ? '' : 'Invalid NIC');
-        });
+        // // 4. NIC Validation
+        // $('#nic').on('input', function () {
+        //     const pattern = /^(?:\d{9}[VvXx]|\d{12})$/;
+        //     const isValid = pattern.test(this.value);
+        //     $('#nic-error').toggle(!isValid);
+        //     this.setCustomValidity(isValid ? '' : 'Invalid NIC');
+        // });
 
         // 5. Image Upload with AJAX
         let uploadedImagePaths = [];

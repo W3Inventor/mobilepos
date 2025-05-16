@@ -107,25 +107,25 @@ $html .= '<div class="details">
     </table>
 </div>';
 
-if (!empty($repairData['images'])) {
-    $imagePaths = array_filter(array_map('trim', explode(',', $repairData['images'])));
-    if (!empty($imagePaths)) {
-        $html .= '<div class="details">
-        <p class="section-title">Device Images</p>
-        <div class="images">';
-        foreach ($imagePaths as $imgPath) {
-            $img_file = __DIR__ . '/../../../../' . $imgPath;
-            if (file_exists($img_file)) {
-                $imgData = file_get_contents($img_file);
-                $imgBase64 = base64_encode($imgData);
-                $imgMime   = mime_content_type($img_file);
-                $imgSrc    = "data:$imgMime;base64,$imgBase64";
-                $html .= '<img src="'.$imgSrc.'" alt="Image">';
-            }
-        }
-        $html .= '</div></div>';
-    }
-}
+// if (!empty($repairData['images'])) {
+//     $imagePaths = array_filter(array_map('trim', explode(',', $repairData['images'])));
+//     if (!empty($imagePaths)) {
+//         $html .= '<div class="details">
+//         <p class="section-title">Device Images</p>
+//         <div class="images">';
+//         foreach ($imagePaths as $imgPath) {
+//             $img_file = __DIR__ . '/../../../../' . $imgPath;
+//             if (file_exists($img_file)) {
+//                 $imgData = file_get_contents($img_file);
+//                 $imgBase64 = base64_encode($imgData);
+//                 $imgMime   = mime_content_type($img_file);
+//                 $imgSrc    = "data:$imgMime;base64,$imgBase64";
+//                 $html .= '<img src="'.$imgSrc.'" alt="Image">';
+//             }
+//         }
+//         $html .= '</div></div>';
+//     }
+// }
 
 $html .= '<div class="footer">
     <p>Thank you for choosing '.htmlspecialchars($company_name).'. We will contact you once the repair is complete.</p>

@@ -361,15 +361,14 @@ input[type=number] {
 
     
 <script>
-        $(document).ready(function () {
+    $(document).ready(function () {
         // Clear all input fields
-        $('#clearCustomerDetails').on('click', function () {
-        
-            $('#customerdetails input[type="text"], #customerdetails input[type="email"], #customerdetails input[type="tel"]').val('');
-
-            // Hide any error messages
+        $('#clearCustomerDetails').on('click', function (e) {
+            e.preventDefault(); // Prevent anchor from jumping
+            $('#nic, #full_name, #mobile_number, #email, #address').val('');
             $('#nic-error').hide();
         });
+
 
         // 1. Initialize Brand Dropdown with Select2
         $('#brand_name').select2({

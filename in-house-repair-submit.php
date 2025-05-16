@@ -477,22 +477,76 @@ input[type=number] {
                 data: $(this).serialize(),
                 success: function (response) {
                     try {
-                        const json = typeof response === 'string' ? JSON.parse(response) : response;
-                        if (json.success) {
+                        const json = (typeof response === 'string') ? JSON.parse(response) : response;
+                        // Handle Print: open PDF and auto-print
+                        if (json.redirect) {
+                            const printWin = window.open(json.redirect, '_blank', 
+                                'width=526,height=600,scrollbars=no,toolbar=no,location=no,status=no,menubar=no');
+                            if (printWin) {
+                                printWin.onload = function () {
+                                    printWin.print();
+                                    // Reset form after printing
+                                    $('#inhouserepairForm')[0].reset();
+                                    $('#uploadedImagePaths').val('');
+                                    $('#imagePreviewContainer').empty();
+                                };
+                            }
+                            return; // Exit after handling print
+                        }
+                        // Handle SMS outcome
+                        if (json.sms_success) {
                             Swal.fire({
                                 icon: 'success',
-                                title: 'Submitted!',
-                                text: 'Repair record has been added successfully.'
+                                title: 'SMS Sent',
+                                text: json.sms_success
+                            }).then(() => {
+                                $('#inhouserepairForm')[0].reset();
+                                $('#uploadedImagePaths').val('');
+                                $('#imagePreviewContainer').empty();
                             });
-                            $('#inhouserepairForm')[0].reset();
-                            $('#uploadedImagePaths').val('');
-                            $('#imagePreviewContainer').empty();
-                        } else {
+                        } else if (json.sms_error) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'SMS Error',
+                                text: json.sms_error || 'Failed to send SMS.'
+                            }).then(() => {
+                                // Even if SMS failed, the repair is saved, so we still reset the form
+                                $('#inhouserepairForm')[0].reset();
+                                $('#uploadedImagePaths').val('');
+                                $('#imagePreviewContainer').empty();
+                            });
+                        }
+                        // Handle Email outcome
+                        if (json.email_error) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Email Error',
+                                text: json.email_error
+                            }).then(() => {
+                                $('#inhouserepairForm')[0].reset();
+                                $('#uploadedImagePaths').val('');
+                                $('#imagePreviewContainer').empty();
+                            });
+                        } else if (json.success) {
+                            // json.success is used here for the email success message or generic success
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: json.success
+                            }).then(() => {
+                                $('#inhouserepairForm')[0].reset();
+                                $('#uploadedImagePaths').val('');
+                                $('#imagePreviewContainer').empty();
+                            });
+                        }
+                        // Handle DB error (if any)
+                        if (json.error) {
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Submission Failed',
-                                text: json.error || 'Unknown error.'
+                                text: json.error || 'Unknown error occurred.'
                             });
+                            // (Form not reset here so user can correct and resubmit if needed)
                         }
                     } catch (err) {
                         Swal.fire('Error', 'Invalid server response', 'error');
@@ -503,6 +557,7 @@ input[type=number] {
                 }
             });
         });
+
     });
 </script>
 

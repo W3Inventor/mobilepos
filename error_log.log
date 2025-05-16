@@ -1,0 +1,7 @@
+
+[31-Aug-2024 15:47:37 Europe/Berlin] PHP Warning:  Undefined array key "product_type" in D:\XAMPP\htdocs\pos\assets\php\payment-helper\process_payment.php on line 86
+[31-Aug-2024 15:47:37 Europe/Berlin] PHP Fatal error:  Uncaught ArgumentCountError: The number of elements in the type definition string must match the number of bind variables in D:\XAMPP\htdocs\pos\assets\php\payment-helper\process_payment.php:104
+Stack trace:
+#0 D:\XAMPP\htdocs\pos\assets\php\payment-helper\process_payment.php(104): mysqli_stmt->bind_param('isssiidd', 7, NULL, NULL, NULL, '', '1', '3500', '0', 3500)
+#1 {main}
+  thrown in D:\XAMPP\htdocs\pos\assets\php\payment-helper\process_payment.php on line 104

@@ -1,0 +1,37 @@
+/* Customize Toastr progress bar */
+#toast-container .toast-success .toast-progress {
+    background-color: #28a745; /* Green progress bar to match the success theme */
+}
+
+#toast-container .toast-error .toast-progress {
+    background-color: #dc3545; /* Red progress bar for error notifications */
+}
+
+#toast-container > .toast {
+    border-radius: 6px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    font-family: 'Arial', sans-serif;
+}
+
+#toast-container > .toast .toast-message {
+    margin-left: 10px;
+}
+
+#toast-container > .toast .toast-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+#toast-container > .toast .toast-icon {
+    color: #28a745;
+    font-size: 1.5em;
+    margin-right: 8px;
+}
+
+/* Adjust position, size, and spacing */
+#toast-container {
+    top: 20px; /* Position at the top */
+    right: 20px; /* Position to the right */
+    width: 300px;
+}

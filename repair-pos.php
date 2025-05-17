@@ -84,7 +84,7 @@ $stmt->close();
                         <h5 class="card-title">Device: <?php echo htmlspecialchars($repair['brand'] . ' ' . $repair['model']); ?> (IMEI: <?php echo htmlspecialchars($repair['imei']); ?>)</h5>
                     </div>
                     <div class="card-body">
-                        <form id="repairInvoiceForm" method="post" action="assets/php/helper/repair-helper/submit_repair_invoice.php">
+                        <form id="repairInvoiceForm" method="post">
                             <input type="hidden" name="repair_id" value="<?php echo $repair_id; ?>">
 
                             <table class="table table-bordered align-middle">
@@ -121,33 +121,61 @@ $stmt->close();
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+<script src="assets/vendors/js/jquery.min.js"></script>
+<script src="assets/vendors/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    function initSelect2(select) {
-        select.select2({
-            placeholder: 'Search part, serial or ID',
-            tags: true,
-            minimumInputLength: 1,
-            ajax: {
-                url: 'assets/php/helper/repair-helper/search_parts.php',
-                dataType: 'json',
-                delay: 250,
-                data: params => ({ q: params.term }),
-                processResults: function (data) {
-                    return {
-                        results: data.results.map(item => {
-                            return {
-                                id: item.id,
-                                text: item.text,
-                                serials: item.serials // attach serials for later use
-                            };
-                        })
-                    };
-                }
-            },
-            width: '100%'
-        });
-    }
+function initSelect2(select) {
+    select.select2({
+        placeholder: 'Search part, serial or ID',
+        tags: true,
+        minimumInputLength: 1,
+        ajax: {
+            url: 'assets/php/helper/repair-helper/search_parts.php',
+            dataType: 'json',
+            delay: 250,
+            data: params => ({ q: params.term }),
+            processResults: function (data) {
+                return {
+                    results: data.results.map(item => ({
+                        id: item.id,
+                        text: item.text
+                    }))
+                };
+            }
+        },
+        width: '100%',
+        insertTag: () => {}, // ⛔ Prevent automatic tag insertion
+        createTag: function (params) {
+            const term = $.trim(params.term);
+            const originalEvent = params.originalEvent;
+
+            // ✅ Only allow tag if Enter was pressed
+            if (!originalEvent || originalEvent.type !== 'keydown' || originalEvent.key !== 'Enter') {
+                return null;
+            }
+
+            return {
+                id: 'manual||',
+                text: term,
+                isManual: true
+            };
+        },
+        templateResult: function (data) {
+            if (data.isManual) {
+                return $('<span><strong>Custom:</strong> ' + data.text + '</span>');
+            }
+            return data.text;
+        },
+        templateSelection: function (data) {
+            return data.text;
+        }
+    });
+}
+
+
+
 
     function addPartRow() {
         const row = $('<tr>');
@@ -182,43 +210,54 @@ $stmt->close();
         $('#grandTotal').text(total.toFixed(2));
     }
 
+    $(document).ready(() => {
+        addPartRow();
+    });
+
     $('#addPart').on('click', addPartRow);
     $(document).on('input', '.qty, .price', updateTotal);
-    $(document).ready(() => addPartRow());
 
     $('#repairInvoiceForm').on('submit', function () {
         const total = $('#grandTotal').text();
-        $('<input>').attr({ type: 'hidden', name: 'total_amount', value: total }).appendTo(this);
+        $('<input>').attr({
+            type: 'hidden',
+            name: 'total_amount',
+            value: total
+        }).appendTo(this);
     });
 
-    // ✅ Handle selection from Select2 and auto-fill serial + price
     $(document).on('select2:select', '.part-name', function (e) {
-    const row = $(this).closest('tr');
-    const selectedData = e.params.data;
-    const [accessoryId, serialNumber] = selectedData.id.split('||');
+        const row = $(this).closest('tr');
+        const selectedData = e.params.data;
+        const [accessoryId, serialNumber] = (selectedData.id || '').split('||');
 
-    // Autofill serial number (can be empty)
-    row.find('input[name^="parts[serial]"]').val(serialNumber);
+        // Autofill serial number field
+        row.find('input[name^="parts[serial]"]').val(serialNumber || '');
 
-    if (!accessoryId || isNaN(accessoryId)) return;
+        // Skip if it's a custom/manual entry
+        if (!accessoryId || isNaN(accessoryId)) return;
 
-    $.ajax({
-        url: 'assets/php/helper/repair-helper/get-product-details.php',
-        method: 'POST',
-        data: { accessory_id: accessoryId },
-        dataType: 'json',
-        success: function (data) {
-            if (data.prices?.length) {
-                row.find('input[name^="parts[price]"]').val(data.prices[0]);
+        $.ajax({
+            url: 'assets/php/helper/repair-helper/get-product-details.php',
+            method: 'POST',
+            data: { accessory_id: accessoryId },
+            dataType: 'json',
+            success: function (data) {
+                if (data.prices?.length) {
+                    row.find('input[name^="parts[price]"]').val(data.prices[0]);
+                    updateTotal();
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error("AJAX ERROR:", error);
             }
-        },
-        error: function (xhr, status, error) {
-            console.error("AJAX ERROR:", error);
-        }
+        });
     });
-});
-
 </script>
+
+
+
+
 
 </body>
 </html>

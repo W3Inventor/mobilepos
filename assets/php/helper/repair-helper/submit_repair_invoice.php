@@ -6,27 +6,30 @@ error_reporting(E_ALL);
 header('Content-Type: application/json');
 
 // Collect and validate POST data
-$repair_id = $_POST['repair_id'] ?? '';
-$total_amount = $_POST['total_amount'] ?? '';
-$parts = $_POST['parts'] ?? [];
+$repair_id     = $_POST['repair_id'] ?? '';
+$total_amount  = $_POST['total_amount'] ?? '';
+$parts         = $_POST['parts'] ?? [];
 
-if (empty($repair_id) || empty($parts) || !is_array($parts) || empty($total_amount)) {
-    echo json_encode(['error' => 'Missing required fields.']);
+if (empty($repair_id) || empty($parts) || !is_array($parts) || !is_numeric($total_amount)) {
+    echo json_encode(['error' => 'Missing or invalid required fields.']);
     exit;
 }
 
-$part_names     = $parts['name']     ?? [];
-$part_serials   = $parts['serial']   ?? [];
-$part_warranties= $parts['warranty'] ?? [];
-$part_qty       = $parts['qty']      ?? [];
-$part_price     = $parts['price']    ?? [];
+$repair_id     = (int) $repair_id;
+$total_amount  = (float) $total_amount;
+
+$part_names      = $parts['name']     ?? [];
+$part_serials    = $parts['serial']   ?? [];
+$part_warranties = $parts['warranty'] ?? [];
+$part_qty        = $parts['qty']      ?? [];
+$part_price      = $parts['price']    ?? [];
 
 $conn->begin_transaction();
 
 try {
-    // 1. Insert new invoice
-    $stmt = $conn->prepare("INSERT INTO repair_invoices (repair_id, status) VALUES (?, 'unpaid')");
-    $stmt->bind_param("i", $repair_id);
+    // 1. Insert new invoice with total_amount
+    $stmt = $conn->prepare("INSERT INTO repair_invoices (repair_id, status, total_amount) VALUES (?, 'unpaid', ?)");
+    $stmt->bind_param("id", $repair_id, $total_amount);
     if (!$stmt->execute()) {
         throw new Exception("Failed to insert invoice: " . $stmt->error);
     }
@@ -42,27 +45,23 @@ try {
         $qty       = (int)($part_qty[$i] ?? 0);
         $price     = (float)($part_price[$i] ?? 0);
 
-        if ($item_name === '' || $qty <= 0) {
-            // Skip empty or invalid entries
-            continue;
-        }
+        if ($item_name === '' || $qty <= 0) continue;
 
         $accessory_id = null;
 
         // 2a. Try to find matching accessory by name
-        $stmt = $conn->prepare("SELECT accessory_id FROM accessories WHERE item_name = ?");
+        $stmt = $conn->prepare("SELECT accessory_id FROM accessories WHERE accessory_name = ?");
         $stmt->bind_param("s", $item_name);
         $stmt->execute();
         $stmt->bind_result($aid);
         if ($stmt->fetch()) {
-            // Accessory matched
             $accessory_id = $aid;
         }
         $stmt->close();
 
-        // 2b. If matched, deduct stock and mark serial out of stock
+        // 2b. If matched, update stock and serial number
         if ($accessory_id !== null) {
-            $stmt = $conn->prepare("UPDATE accessories SET stock = stock - ? WHERE accessory_id = ?");
+            $stmt = $conn->prepare("UPDATE accessories SET quantity = quantity - ? WHERE accessory_id = ?");
             $stmt->bind_param("ii", $qty, $accessory_id);
             if (!$stmt->execute()) {
                 throw new Exception("Failed to update stock for accessory $accessory_id: " . $stmt->error);
@@ -79,52 +78,43 @@ try {
             }
         }
 
-        // 2c. Insert part line into repair_invoice_items
+        // 2c. Insert into repair_invoice_items
         if ($accessory_id !== null) {
-            $stmt_item = $conn->prepare("
-                INSERT INTO repair_invoice_items 
-                  (invoice_id, accessory_id, item_name, serial_number, warranty, quantity, price) 
+            $stmt = $conn->prepare("INSERT INTO repair_invoice_items 
+                (invoice_id, accessory_id, item_name, serial_number, warranty, quantity, price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt_item->bind_param("iisssid", 
-                $invoice_id, $accessory_id, $item_name, $serial, $warranty, $qty, $price);
+            $stmt->bind_param("iisssid", $invoice_id, $accessory_id, $item_name, $serial, $warranty, $qty, $price);
         } else {
-            // Manual item (no accessory_id)
-            $stmt_item = $conn->prepare("
-                INSERT INTO repair_invoice_items 
-                  (invoice_id, item_name, serial_number, warranty, quantity, price) 
+            $stmt = $conn->prepare("INSERT INTO repair_invoice_items 
+                (invoice_id, item_name, serial_number, warranty, quantity, price)
                 VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt_item->bind_param("isssid", 
-                $invoice_id, $item_name, $serial, $warranty, $qty, $price);
+            $stmt->bind_param("isssid", $invoice_id, $item_name, $serial, $warranty, $qty, $price);
         }
-        if (!$stmt_item->execute()) {
-            throw new Exception("Failed to insert invoice item: " . $stmt_item->error);
+
+        if (!$stmt->execute()) {
+            throw new Exception("Failed to insert invoice item: " . $stmt->error);
         }
-        $stmt_item->close();
+        $stmt->close();
     }
 
-    // 3. Update in_house_repair record
-    $ready_status = 'Ready to Pickup';
-    $stmt = $conn->prepare("
-        UPDATE in_house_repair 
-        SET actual_price = ?, status = ?
-        WHERE ir_id = ?");
-    $stmt->bind_param("dsi", $total_amount, $ready_status, $repair_id);
+    // 3. Update in_house_repair
+    $status = 'Ready to Pickup';
+    $stmt = $conn->prepare("UPDATE in_house_repair SET actual_price = ?, status = ? WHERE ir_id = ?");
+    $stmt->bind_param("dsi", $total_amount, $status, $repair_id);
     if (!$stmt->execute()) {
         throw new Exception("Failed to update in-house repair: " . $stmt->error);
     }
     $stmt->close();
 
-    // 4. Insert into repair_status_history
-    $stmt = $conn->prepare("
-        INSERT INTO repair_status_history (repair_id, status) 
-        VALUES (?, ?)");
-    $stmt->bind_param("is", $repair_id, $ready_status);
+    // 4. Insert into status history
+    $stmt = $conn->prepare("INSERT INTO repair_status_history (repair_id, status) VALUES (?, ?)");
+    $stmt->bind_param("is", $repair_id, $status);
     if (!$stmt->execute()) {
         throw new Exception("Failed to record status history: " . $stmt->error);
     }
     $stmt->close();
 
-    // 5. Fetch customer name and mobile to send SMS
+    // 5. Get customer details and send SMS
     $stmt = $conn->prepare("
         SELECT c.full_name, c.mobile_number
         FROM in_house_repair r
@@ -137,27 +127,18 @@ try {
     $stmt->close();
 
     if (!empty($customer_name) && !empty($customer_mobile)) {
-        $sms_message = "Hi $customer_name, your device repair (ID: #$repair_id) is ready for pickup. Final bill: LKR $total_amount. Thank you!";
-        sendSms($customer_mobile, $sms_message);
+        $message = "Hi $customer_name, your repair (ID: #$repair_id) is ready. Total: LKR $total_amount.";
+        sendSms($customer_mobile, $message);
     }
 
-    // 6. Commit transaction and output success JSON
     $conn->commit();
-    $conn->close();
-
-    $redirect_url = "print_repair_invoice.php?invoice_id=$invoice_id";
     echo json_encode([
-        'success'    => 'Invoice created successfully.',
+        'success' => 'Invoice created successfully.',
         'invoice_id' => $invoice_id,
-        'redirect'   => $redirect_url
+        'redirect' => "print_repair_invoice.php?invoice_id=$invoice_id"
     ]);
-    exit;
-
 } catch (Exception $e) {
-    // Rollback on error and output JSON error
     $conn->rollback();
-    $conn->close();
     echo json_encode(['error' => 'Transaction failed: ' . $e->getMessage()]);
-    exit;
 }
 ?>

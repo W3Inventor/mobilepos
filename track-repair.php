@@ -116,7 +116,7 @@ $progress_width = $progress_width_map[$current_step_index] ?? 10;
             border-color: #0d6efd;
             background-color: #0d6efd;
             color: #fff;
-        }
+         }
         .progress-step.current::before {
             animation: wavePulse 1.5s infinite;
         }

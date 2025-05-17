@@ -44,7 +44,7 @@
                                 </a>
                                 <ul class="nxl-submenu">
                                     
-                                    <li class="nxl-item"><a class="nxl-link" href="mobile.php?filter=in_stock">Check Stock</a></li>
+                                    <li class="nxl-item"><a class="nxl-link" href="mobile.php?filter=all&condition=all">Check Stock</a></li>
                                     <li class="nxl-item"><a class="nxl-link" href="add-mobile.php">Add New Items</a></li>
                                 </ul>
                             </li>
@@ -120,7 +120,7 @@
                                 <ul class="nxl-submenu">
                                     
                                     <li class="nxl-item"><a class="nxl-link" href="in-house-repair-submit.php">Submit</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Processing</a></li>
+                                    <li class="nxl-item"><a class="nxl-link" href="in-house-repair.php">Processing</a></li>
                                     <li class="nxl-item"><a class="nxl-link" href="#">Fixed</a></li>
                                     <li class="nxl-item"><a class="nxl-link" href="#">Paid</a></li>
                                 </ul>

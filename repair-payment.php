@@ -2,6 +2,7 @@
 
 session_start();
 
+
 // Check if the user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: auth-login.php");
@@ -10,6 +11,42 @@ if (!isset($_SESSION['user_id'])) {
 
 // include 'config/adminacc.php';
 include 'config/dbconnect.php';
+
+$customer_data = null;
+$customer_id = isset($_GET['customer_id']) ? (int)$_GET['customer_id'] : 0;
+
+if ($customer_id) {
+    $stmt = $conn->prepare("SELECT full_name, nic, mobile_number, email, address FROM customers WHERE customer_id = ?");
+    $stmt->bind_param("i", $customer_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $customer_data = $result->fetch_assoc();
+    $stmt->close();
+}
+
+$repair_id = isset($_GET['repair_id']) ? (int)$_GET['repair_id'] : 0;
+$invoice_id = isset($_GET['invoice_id']) ? (int)$_GET['invoice_id'] : 0;
+$invoice_items = [];
+if ($invoice_id) {
+    // Ensure the invoice is unpaid
+    $stmt = $conn->prepare("SELECT status FROM repair_invoices WHERE invoice_id = ?");
+    $stmt->bind_param("i", $invoice_id);
+    $stmt->execute();
+    $stmt->bind_result($inv_status);
+    $stmt->fetch();
+    $stmt->close();
+    if ($inv_status === 'unpaid') {
+        // Fetch all items for this invoice
+        $stmt = $conn->prepare("SELECT * FROM repair_invoice_items WHERE invoice_id = ?");
+        $stmt->bind_param("i", $invoice_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $invoice_items[] = $row;
+        }
+        $stmt->close();
+    }
+}
 
 
 $paymentMethods = [];
@@ -43,11 +80,10 @@ if ($result->num_rows > 0) {
     <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
     <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css">
-    <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2.min.css">
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2-theme.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css">
 </head>
 
@@ -136,9 +172,37 @@ if ($result->num_rows > 0) {
                                 <th>Action</th>
                             </tr>
                         </thead>
+                        <?php $count = 0; ?>
                         <tbody>
-                            <!-- Cart items here -->
+                        <?php foreach ($invoice_items as $item): ?>
+                            <?php
+                                $count++;
+                                $type = $item['accessory_id'] ? 'accessory' : 'manual';
+                                $id   = $item['accessory_id'] ?: 0;
+                                $qty  = (int)$item['quantity'];
+                                $price = number_format($item['price'], 2, '.', '');
+                                $total = number_format($qty * $item['price'], 2, '.', '');
+                                $item_name = htmlspecialchars($item['item_name']);
+                                $warranty = htmlspecialchars($item['warranty']);
+                                $serial = htmlspecialchars($item['serial_number']);
+                            ?>
+                            <tr data-id="<?= $id ?>" data-type="<?= $type ?>" data-imei="" data-serial_number="<?= $serial ?>">
+                                <td><?= $count ?></td>
+                                <td class="item"><?= $item_name ?></td>
+                                <td class="quantity"><?= $qty ?></td>
+                                <td>LKR <?= $price ?></td>
+                                <td>LKR 0.00</td>
+                                <td><?= $warranty ?></td>
+                                <td class="total">LKR <?= $total ?></td>
+                                <td>
+                                    <button class="btn btn-link text-danger delete-btn">
+                                        <i class="feather-trash-2"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
                         </tbody>
+
                         <tfoot>
                             <tr>
                                 <td colspan="6" class="text-end"><strong>Sub Total</strong></td>
@@ -165,38 +229,37 @@ if ($result->num_rows > 0) {
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label>NIC<span class="text-danger">*</span></label>
-                            <input id="nic" name="nic" type="text" class="form-control" required>
-                            <span id="nic-error" class="text-danger" style="display:none;">Please enter a valid NIC number.</span>
+                            <input id="nic" name="nic" type="text" class="form-control" value="<?= $customer_data['nic'] ?? '' ?>" <?= $customer_data ? 'readonly' : '' ?>>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label>Full Name<span class="text-danger">*</span></label>
-                            <input id="full_name" name="full_name" type="text" class="form-control" required>
+                            <input id="full_name" name="full_name" type="text" class="form-control" value="<?= $customer_data['full_name'] ?? '' ?>" <?= $customer_data ? 'readonly' : '' ?>>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3 d-grid">
                             <label>Mobile Number<span class="text-danger">*</span></label>
-                            <input id="mobile_number" name="mobile_number" type="tel" class="form-control">
+                            <input id="mobile_number" name="mobile_number" type="tel" class="form-control" value="<?= $customer_data['mobile_number'] ?? '' ?>" <?= $customer_data ? 'readonly' : '' ?>>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label>Email Address</label>
-                            <input id="email" name="email" type="email" class="form-control">
+                            <input id="email" name="email" type="email" class="form-control" value="<?= $customer_data['email'] ?? '' ?>" <?= $customer_data ? 'readonly' : '' ?>>
                         </div>
                     </div>
                         <div class="mb-3">
                             <label>Address</label>
-                            <input id="address" name="address" type="text" class="form-control">
+                            <input id="address" name="address" type="text" class="form-control" value="<?= $customer_data['address'] ?? '' ?>" <?= $customer_data ? 'readonly' : '' ?>>
                         </div>
                     </div>
-                    <div class="col-12">
+                    <!-- <div class="col-12">
                         <div class="d-flex">
                             <a href="#">   <p class="text-decoration-underline small" id="clearCustomerDetails" >Clear</p></a>
                         </div>
-                    </div>
+                    </div> -->
 
                        
                 </form>
@@ -385,6 +448,7 @@ if ($result->num_rows > 0) {
 </div>
 
     <!--! BEGIN: Vendors JS !-->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="assets/vendors/js/vendors.min.js"></script>
     <script src="assets/vendors/js/select2.min.js"></script>
     <script src="assets/vendors/js/select2-active.min.js"></script>
@@ -402,252 +466,322 @@ if ($result->num_rows > 0) {
 
 <script>
 
-$(document).ready(function () {
+    $(document).ready(function () {
+        updateSubtotal();
+        $('#paymentdetails').on('submit', function (e) {
+            e.preventDefault();
 
-    
+            const customer = {
+                id: $('#customer_id').val(),
+                full_name: $('#full_name').val(),
+                mobile_number: $('#mobile_number').val(),
+                email: $('#email').val(),
+                address: $('#address').val()
+            };
 
-    $('#clearCustomerDetails').on('click', function () {
-        // Clear all input fields
-        $('#customerdetails input[type="text"], #customerdetails input[type="email"], #customerdetails input[type="tel"]').val('');
+            const payment = {
+                bill_amount: parseFloat($('#bill_amount').val()),
+                total_discount: parseFloat($('#total_discount').val()),
+                payable_amount: parseFloat($('#payable_amount').val()),
+                method: $('#payment_method').val(),
+                cash_payment: parseFloat($('#cash_payment').val()) || 0,
+                card_payment: parseFloat($('#card_payment').val()) || 0,
+                reference: $('#reference').val()
+            };
 
-        // Hide any error messages
-        $('#nic-error').hide();
-    });
+            const cart_items = [];
+            $('#proposalList tbody tr').each(function () {
+                const row = $(this);
+                cart_items.push({
+                    id: row.data('id'),
+                    item_name: row.find('.item').text().trim(),
+                    quantity: parseInt(row.find('.quantity').text()),
+                    price: parseFloat(row.find('td:nth-child(4)').text().replace('LKR ', '')) || 0,
+                    discount: parseFloat(row.find('td:nth-child(5)').text().replace('LKR ', '')) || 0,
+                    warranty: row.find('td:nth-child(6)').text().trim(),
+                    type: row.data('type'),
+                    serial_number: row.data('serial_number') || '',
+                    imei: row.data('imei') || ''
+                });
+            });
 
 
+            
 
-    $('#nic, #email, #mobile_number').on('input', function () {
-        const nic = $('#nic').val();
-        const email = $('#email').val();
-        const mobile = $('#mobile_number').val();
-
-        if (nic || email || mobile) {
-            // Make an AJAX call to fetch customer details
             $.ajax({
-                url: 'assets/php/helper/payment-helper/customer-fetch.php',
+                url: 'assets/php/helper/payment-helper/submit_repair_payment.php',
                 method: 'POST',
-                data: { nic: nic, email: email, mobile: mobile },
-                dataType: 'json',
-                success: function (data) {
-                    if (data.success) {
-                        // Autofill customer details if found
-                        $('#nic').val(data.customer.nic);
-                        $('#full_name').val(data.customer.full_name);
-                        $('#mobile_number').val(data.customer.mobile_number);
-                        $('#email').val(data.customer.email);
-                        $('#address').val(data.customer.address);
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    repair_id: <?php echo $repair_id; ?>,
+                    customer: customer,
+                    payment: payment,
+                    cart_items: cart_items
+                }),
+                success: function (response) {
+                    if (response.success) {
+                        Swal.fire('Success', response.message, 'success').then(() => {
+                            window.location.href = 'in-house-repair.php';
+                        });
+                    } else {
+                        Swal.fire('Error', response.message, 'error');
                     }
                 },
-                error: function (xhr, status, error) {
-                    console.error('AJAX Error:', error);
+                error: function () {
+                    Swal.fire('Error', 'An unexpected error occurred.', 'error');
                 }
             });
-        }
-    });
-
-
-
-
-
-    // Prevent the default form submission when hitting Enter in the search input
-    $('#search').on('keydown', function (event) {
-        if (event.key === "Enter") {
-            event.preventDefault(); // Prevent the Enter key from submitting the form
-        }
-    });
-
-
-    });
-
-  // Function to update the subtotal and bill amount
-    function updateSubtotal() {
-        let subtotal = 0;
-
-        // Sum the total for all cart items
-        $('#proposalList tbody tr').each(function () {
-            const total = parseFloat($(this).find('.total').text().replace('LKR ', '')) || 0;
-            subtotal += total;
         });
 
-        // Update the subtotal and bill amount
-        $('#subtotal').text("LKR " + subtotal.toFixed(2));
-        $('#bill_amount').val(subtotal.toFixed(2));
-    }
 
-    // Handle delete button click with confirmation
-    $(document).on('click', '.delete-btn', function (e) {
-        e.preventDefault();
-        const row = $(this).closest('tr');
+        $('#clearCustomerDetails').on('click', function () {
+            // Clear all input fields
+            $('#customerdetails input[type="text"], #customerdetails input[type="email"], #customerdetails input[type="tel"]').val('');
 
-        // Confirmation alert using SweetAlert
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Remove the item row and update the subtotal
-                row.remove();
-                updateSubtotal();
-                Swal.fire('Deleted!', 'The item has been deleted from your cart.', 'success');
+            // Hide any error messages
+            $('#nic-error').hide();
+        });
+
+
+
+        $('#nic, #email, #mobile_number').on('input', function () {
+            const nic = $('#nic').val();
+            const email = $('#email').val();
+            const mobile = $('#mobile_number').val();
+
+            if (nic || email || mobile) {
+                // Make an AJAX call to fetch customer details
+                $.ajax({
+                    url: 'assets/php/helper/payment-helper/customer-fetch.php',
+                    method: 'POST',
+                    data: { nic: nic, email: email, mobile: mobile },
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.success) {
+                            // Autofill customer details if found
+                            $('#nic').val(data.customer.nic);
+                            $('#full_name').val(data.customer.full_name);
+                            $('#mobile_number').val(data.customer.mobile_number);
+                            $('#email').val(data.customer.email);
+                            $('#address').val(data.customer.address);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('AJAX Error:', error);
+                    }
+                });
             }
         });
-    });
 
 
-    // Function to update the subtotal, bill amount, and total discount in the payment details
-    function updateSubtotal() {
-        var subtotal = 0;
-        var totalDiscount = 0;
 
-        // Iterate through each row in the cart table
-        $('#proposalList tbody tr').each(function () {
-            var total = parseFloat($(this).find('.total').text().replace('LKR ', '')); // Extract and parse the total amount
-            var discount = parseFloat($(this).find('td:nth-child(5)').text().replace('LKR ', '')) || 0; // Extract and parse the discount amount
-            subtotal += total; // Sum the total amounts
-            totalDiscount += discount; // Sum the discount amounts
+
+
+        // Prevent the default form submission when hitting Enter in the search input
+        $('#search').on('keydown', function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault(); // Prevent the Enter key from submitting the form
+            }
         });
 
-        // Update the subtotal and bill amount
-        $('#subtotal').text("LKR " + subtotal.toFixed(2)); // Display the updated subtotal
-        $('#bill_amount').val(subtotal.toFixed(2)); // Set the numeric value for the bill amount
-        $('#bill_amount').siblings('#bill_amount').text("LKR " + subtotal.toFixed(2)); // Display the updated bill amount with the prefix
 
-        // Update the total discount field
-        $('#total_discount').val(totalDiscount.toFixed(2)); // Set the numeric value for the total discount
-        $('#total_discount').siblings('#total_discount').text("LKR " + totalDiscount.toFixed(2)); // Display the updated total discount with the prefix
+        });
 
-        // Calculate the payable amount whenever the subtotal is updated
-        calculatePayableAmount();
-    }
+        // Function to update the subtotal and bill amount
+        function updateSubtotal() {
+            var subtotal = 0;
+            var totalDiscount = 0;
 
-    // Initialize intl-tel-input
-    const mobileInput = document.querySelector("#mobile_number");
-    const iti = window.intlTelInput(mobileInput, {
-        initialCountry: "auto",
-        utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
-        separateDialCode: true
-    });
+            $('#proposalList tbody tr').each(function () {
+                const totalText = $(this).find('.total').text().replace('LKR', '').replace(',', '').trim();
+                const discountText = $(this).find('td:nth-child(5)').text().replace('LKR', '').replace(',', '').trim();
 
-    // NIC validation
-    document.getElementById('nic').addEventListener('input', function () {
-        var nicInput = this.value;
-        var nicError = document.getElementById('nic-error');
+                const total = parseFloat(totalText) || 0;
+                const discount = parseFloat(discountText) || 0;
 
-        // Regular expression for validating NIC: 12 digits or 9 digits followed by 'V' or 'X'
-        var nicPattern = /^(?:\d{9}[VvXx]|\d{12})$/;
+                subtotal += total;
+                totalDiscount += discount;
+            });
 
-        if (nicPattern.test(nicInput)) {
-            nicError.style.display = 'none';
-            this.setCustomValidity('');  // Clear any previous validation message
-        } else {
-            nicError.style.display = 'block';
-            this.setCustomValidity('Invalid NIC number');  // Show a custom validation message
-        }
-    });
-
-    // Payment methods initialization
-    var paymentMethods = <?php echo json_encode($paymentMethods); ?>;
-    var paymentMethodDetails = {};
-
-    // Populate the map with payment method details
-    paymentMethods.forEach(method => {
-        paymentMethodDetails[method.pmethod_id] = method;
-    });
-
-    // Function to update visibility and behavior of fields based on payment method
-    // Update visibility and required behavior of fields based on payment method
-    function updatePaymentFields() {
-        var selectedMethodId = $('#payment_method').val();
-        var selectedMethod = paymentMethodDetails[selectedMethodId] || {};
-        var selectedMethodType = selectedMethod.payment_method_type || '';
-
-        // Handle single payment methods (like Cash, Bank Transfer, BNPL, or Card Payment)
-        if (['Bank Transfer', 'Cash Payment', 'BNPL', 'Card Payment'].includes(selectedMethodType)) {
-            $('#cash_payment').closest('.mb-4').hide();
-            $('#card_payment').closest('.mb-4').hide();
-
-            // Remove required attributes to avoid validation errors when fields are hidden
-            $('#cash_payment').prop('required', false);
-            $('#card_payment').prop('required', false);
-        } else {
-            // For mixed payment methods, show and set labels appropriately
-            var types = selectedMethodType.split(' + ');
-            $('#cash_payment').closest('.mb-4').show().find('label').text(types[0] || 'Cash');
-            $('#card_payment').closest('.mb-4').show().find('label').text(types[1] || 'Card');
-
-            // Add required attributes to visible fields
-            $('#cash_payment').prop('required', true);
-            $('#card_payment').prop('required', true);
+            $('#subtotal').text("LKR " + subtotal.toFixed(2));
+            $('#bill_amount').val(subtotal.toFixed(2));
+            $('#total_discount').val(totalDiscount.toFixed(2));
+            $('#payable_amount').val(subtotal.toFixed(2)); // initially same as bill
         }
 
-        // Recalculate payable amount based on selected method
-        calculatePayableAmount();
-    }
 
-    // Calculate the payable amount and update display elements
-    function calculatePayableAmount() {
-        var billAmount = parseFloat($('#bill_amount').val()) || 0;
-        var cashPayment = parseFloat($('#cash_payment').val()) || 0;
-        var cardPayment = billAmount - cashPayment; // Calculate remaining card payment
+        // Handle delete button click with confirmation
+        $(document).on('click', '.delete-btn', function (e) {
+            e.preventDefault();
+            const row = $(this).closest('tr');
 
-        // Get payment method and cost details
-        var selectedMethodId = $('#payment_method').val();
-        var selectedMethod = paymentMethodDetails[selectedMethodId] || {};
-        var costOne = selectedMethod.cost_one || '0';
-        var costTwo = selectedMethod.cost_two || '0';
-        var selectedMethodType = selectedMethod.payment_method_type || '';
+            // Confirmation alert using SweetAlert
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "You won't be able to revert this!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Remove the item row and update the subtotal
+                    row.remove();
+                    updateSubtotal();
+                    Swal.fire('Deleted!', 'The item has been deleted from your cart.', 'success');
+                }
+            });
+        });
 
-        // Initialize payable amounts
-        var cashPayable = 0;
-        var cardPayable = 0;
 
-        // Handle single payment methods
-        if (['Bank Transfer', 'Cash Payment', 'BNPL', 'Card Payment'].includes(selectedMethodType)) {
-            cashPayable = applyCost(billAmount, costOne); // Apply cost to the entire amount
-            cardPayable = 0; // No card payment required
+        // Function to update the subtotal, bill amount, and total discount in the payment details
+        function updateSubtotal() {
+            var subtotal = 0;
+            var totalDiscount = 0;
 
-            // Hide the cash and card fields for single payment methods
-            $('#cash_payment').closest('.mb-4').hide();
-            $('#card_payment').closest('.mb-4').hide();
-        } else {
-            // Apply costs to both cash and card for mixed methods
-            cashPayable = applyCost(cashPayment, costOne);
-            cardPayable = applyCost(cardPayment, costTwo);
+            // Iterate through each row in the cart table
+            $('#proposalList tbody tr').each(function () {
+                var total = parseFloat($(this).find('.total').text().replace('LKR ', '')); // Extract and parse the total amount
+                var discount = parseFloat($(this).find('td:nth-child(5)').text().replace('LKR ', '')) || 0; // Extract and parse the discount amount
+                subtotal += total; // Sum the total amounts
+                totalDiscount += discount; // Sum the discount amounts
+            });
 
-            // Ensure both fields are shown
-            $('#cash_payment').closest('.mb-4').show();
-            $('#card_payment').closest('.mb-4').show();
+            // Update the subtotal and bill amount
+            $('#subtotal').text("LKR " + subtotal.toFixed(2)); // Display the updated subtotal
+            $('#bill_amount').val(subtotal.toFixed(2)); // Set the numeric value for the bill amount
+            $('#bill_amount').siblings('#bill_amount').text("LKR " + subtotal.toFixed(2)); // Display the updated bill amount with the prefix
+
+            // Update the total discount field
+            $('#total_discount').val(totalDiscount.toFixed(2)); // Set the numeric value for the total discount
+            $('#total_discount').siblings('#total_discount').text("LKR " + totalDiscount.toFixed(2)); // Display the updated total discount with the prefix
+
+            // Calculate the payable amount whenever the subtotal is updated
+            calculatePayableAmount();
         }
 
-        // Update the card payment field
-        $('#card_payment').val(cardPayment.toFixed(2));
+        // Initialize intl-tel-input
+        const mobileInput = document.querySelector("#mobile_number");
+        const iti = window.intlTelInput(mobileInput, {
+            initialCountry: "auto",
+            utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
+            separateDialCode: true
+        });
 
-        // Update the small elements displaying cash and card payables
-        $('#paymentwithcost1').text("Cash Payable: LKR " + cashPayable.toFixed(2));
-        $('#paymentwithcost2').text("Card Payable: LKR " + cardPayable.toFixed(2));
+        // NIC validation
+        document.getElementById('nic').addEventListener('input', function () {
+            var nicInput = this.value;
+            var nicError = document.getElementById('nic-error');
 
-        // Update the payable amount field
-        var totalPayable = cashPayable + cardPayable;
-        $('#payable_amount').val(totalPayable.toFixed(2));
-    }
+            // Regular expression for validating NIC: 12 digits or 9 digits followed by 'V' or 'X'
+            var nicPattern = /^(?:\d{9}[VvXx]|\d{12})$/;
 
-    // Apply cost logic (percentage or fixed)
-    function applyCost(baseValue, cost) {
-        if (cost.includes('%')) {
-            var percentage = parseFloat(cost.replace('%', '')) / 100;
-            return baseValue + (baseValue * percentage);
-        } else {
-            return baseValue + parseFloat(cost);
+            if (nicPattern.test(nicInput)) {
+                nicError.style.display = 'none';
+                this.setCustomValidity('');  // Clear any previous validation message
+            } else {
+                nicError.style.display = 'block';
+                this.setCustomValidity('Invalid NIC number');  // Show a custom validation message
+            }
+        });
+
+        // Payment methods initialization
+        var paymentMethods = <?php echo json_encode($paymentMethods); ?>;
+        var paymentMethodDetails = {};
+
+        // Populate the map with payment method details
+        paymentMethods.forEach(method => {
+            paymentMethodDetails[method.pmethod_id] = method;
+        });
+
+        // Function to update visibility and behavior of fields based on payment method
+        // Update visibility and required behavior of fields based on payment method
+        function updatePaymentFields() {
+            var selectedMethodId = $('#payment_method').val();
+            var selectedMethod = paymentMethodDetails[selectedMethodId] || {};
+            var selectedMethodType = selectedMethod.payment_method_type || '';
+
+            // Handle single payment methods (like Cash, Bank Transfer, BNPL, or Card Payment)
+            if (['Bank Transfer', 'Cash Payment', 'BNPL', 'Card Payment'].includes(selectedMethodType)) {
+                $('#cash_payment').closest('.mb-4').hide();
+                $('#card_payment').closest('.mb-4').hide();
+
+                // Remove required attributes to avoid validation errors when fields are hidden
+                $('#cash_payment').prop('required', false);
+                $('#card_payment').prop('required', false);
+            } else {
+                // For mixed payment methods, show and set labels appropriately
+                var types = selectedMethodType.split(' + ');
+                $('#cash_payment').closest('.mb-4').show().find('label').text(types[0] || 'Cash');
+                $('#card_payment').closest('.mb-4').show().find('label').text(types[1] || 'Card');
+
+                // Add required attributes to visible fields
+                $('#cash_payment').prop('required', true);
+                $('#card_payment').prop('required', true);
+            }
+
+            // Recalculate payable amount based on selected method
+            calculatePayableAmount();
         }
-    }
 
-    // Initialize payment fields and set up event listeners
-    $(document).ready(function () {
+        // Calculate the payable amount and update display elements
+        function calculatePayableAmount() {
+            var billAmount = parseFloat($('#bill_amount').val()) || 0;
+            var cashPayment = parseFloat($('#cash_payment').val()) || 0;
+            var cardPayment = billAmount - cashPayment; // Calculate remaining card payment
+
+            // Get payment method and cost details
+            var selectedMethodId = $('#payment_method').val();
+            var selectedMethod = paymentMethodDetails[selectedMethodId] || {};
+            var costOne = selectedMethod.cost_one || '0';
+            var costTwo = selectedMethod.cost_two || '0';
+            var selectedMethodType = selectedMethod.payment_method_type || '';
+
+            // Initialize payable amounts
+            var cashPayable = 0;
+            var cardPayable = 0;
+
+            // Handle single payment methods
+            if (['Bank Transfer', 'Cash Payment', 'BNPL', 'Card Payment'].includes(selectedMethodType)) {
+                cashPayable = applyCost(billAmount, costOne); // Apply cost to the entire amount
+                cardPayable = 0; // No card payment required
+
+                // Hide the cash and card fields for single payment methods
+                $('#cash_payment').closest('.mb-4').hide();
+                $('#card_payment').closest('.mb-4').hide();
+            } else {
+                // Apply costs to both cash and card for mixed methods
+                cashPayable = applyCost(cashPayment, costOne);
+                cardPayable = applyCost(cardPayment, costTwo);
+
+                // Ensure both fields are shown
+                $('#cash_payment').closest('.mb-4').show();
+                $('#card_payment').closest('.mb-4').show();
+            }
+
+            // Update the card payment field
+            $('#card_payment').val(cardPayment.toFixed(2));
+
+            // Update the small elements displaying cash and card payables
+            $('#paymentwithcost1').text("Cash Payable: LKR " + cashPayable.toFixed(2));
+            $('#paymentwithcost2').text("Card Payable: LKR " + cardPayable.toFixed(2));
+
+            // Update the payable amount field
+            var totalPayable = cashPayable + cardPayable;
+            $('#payable_amount').val(totalPayable.toFixed(2));
+        }
+
+        // Apply cost logic (percentage or fixed)
+        function applyCost(baseValue, cost) {
+            if (cost.includes('%')) {
+                var percentage = parseFloat(cost.replace('%', '')) / 100;
+                return baseValue + (baseValue * percentage);
+            } else {
+                return baseValue + parseFloat(cost);
+            }
+        }
+    
         // Event listener for payment method change
         $('#payment_method').on('change', updatePaymentFields);
 
@@ -656,156 +790,80 @@ $(document).ready(function () {
 
         // Initialize payment fields visibility and calculations on page load
         updatePaymentFields();
+       
+
+        // Handle form submission for payment
+        $('#paymentdetails').on('submit', function (e) {
+            e.preventDefault();
+
+            var formData = new FormData();
+
+            // Collect Customer Details
+            formData.append('nic', $('#nic').val());
+            formData.append('full_name', $('#full_name').val());
+            formData.append('mobile_number', iti.getNumber());
+            formData.append('email', $('#email').val());
+            var emailValue = $('#email').val();
+            formData.append('email', emailValue);
+            console.log('Email address:', emailValue); 
+            formData.append('address', $('#address').val());
+
+            // Collect Payment Details
+            formData.append('bill_amount', $('#bill_amount').val());
+            formData.append('total_discount', $('#total_discount').val());
+            formData.append('payable_amount', $('#payable_amount').val());
+            formData.append('payment_method', $('#payment_method').val());
+            formData.append('cash_payment', $('#cash_payment').val() || 0);
+            formData.append('card_payment', $('#card_payment').val() || 0);
+            formData.append('payment_cost_1', $('#paymentwithcost1').text().replace('Cash Payable: LKR ', '') || 0);
+            formData.append('payment_cost_2', $('#paymentwithcost2').text().replace('Card Payable: LKR ', '') || 0);
+            formData.append('reference', $('#reference').val());
+
+            // Collect Bill Type
+            var billType = $('input[name="bill_type"]:checked').val();
+            formData.append('bill_type', billType);
+
+
+
+            // Collect Cart Items
+            var cartItems = [];
+            $('#proposalList tbody tr').each(function () {
+                var item = {
+                    id: $(this).data('id'),
+                    item_name: $(this).find('.item').text().trim(),
+                    price: parseFloat($(this).find('td:nth-child(4)').text().replace('LKR ', '')),
+                    discount: parseFloat($(this).find('td:nth-child(5)').text().replace('LKR ', '')) || 0,
+                    quantity: parseInt($(this).find('.quantity').text()),
+                    total: parseFloat($(this).find('.total').text().replace('LKR ', '')),
+                    warranty: $(this).find('td:nth-child(6)').text(),
+                    type: $(this).data('type') || 'accessory',
+                    imei: $(this).data('imei'),
+                    serial_number: $(this).data('serial_number')
+                };
+                cartItems.push(item);
+            });
+            formData.append('cart_items', JSON.stringify(cartItems));
+
+
+        function clearFormAndCart() {
+            // Clear form fields
+            $('#paymentdetails').trigger("reset");
+            $('#customerdetails').trigger("reset");
+
+            // Clear cart table
+            $('#proposalList tbody').empty();
+
+            // Reset subtotal, total discount, and payable amount displays
+            $('#subtotal').text("LKR 0.00");
+            $('#bill_amount').val("0.00");
+            $('#total_discount').val("0.00");
+            $('#payable_amount').val("0.00");
+
+            // Clear additional fields or reset custom display elements if needed
+            $('#paymentwithcost1').text("");
+            $('#paymentwithcost2').text("");
+        }
     });
-
-    // Handle form submission for payment
-    $('#paymentdetails').on('submit', function (e) {
-        e.preventDefault();
-
-        var formData = new FormData();
-
-        // Collect Customer Details
-        formData.append('nic', $('#nic').val());
-        formData.append('full_name', $('#full_name').val());
-        formData.append('mobile_number', iti.getNumber());
-        formData.append('email', $('#email').val());
-        var emailValue = $('#email').val();
-        formData.append('email', emailValue);
-        console.log('Email address:', emailValue); 
-        formData.append('address', $('#address').val());
-
-        // Collect Payment Details
-        formData.append('bill_amount', $('#bill_amount').val());
-        formData.append('total_discount', $('#total_discount').val());
-        formData.append('payable_amount', $('#payable_amount').val());
-        formData.append('payment_method', $('#payment_method').val());
-        formData.append('cash_payment', $('#cash_payment').val() || 0);
-        formData.append('card_payment', $('#card_payment').val() || 0);
-        formData.append('payment_cost_1', $('#paymentwithcost1').text().replace('Cash Payable: LKR ', '') || 0);
-        formData.append('payment_cost_2', $('#paymentwithcost2').text().replace('Card Payable: LKR ', '') || 0);
-        formData.append('reference', $('#reference').val());
-
-        // Collect Bill Type
-        var billType = $('input[name="bill_type"]:checked').val();
-        formData.append('bill_type', billType);
-
-
-
-        // Collect Cart Items
-        var cartItems = [];
-        $('#proposalList tbody tr').each(function () {
-            var item = {
-                id: $(this).data('id'),
-                item_name: $(this).find('.item').text().trim(),
-                price: parseFloat($(this).find('td:nth-child(4)').text().replace('LKR ', '')),
-                discount: parseFloat($(this).find('td:nth-child(5)').text().replace('LKR ', '')) || 0,
-                quantity: parseInt($(this).find('.quantity').text()),
-                total: parseFloat($(this).find('.total').text().replace('LKR ', '')),
-                warranty: $(this).find('td:nth-child(6)').text(),
-                type: $(this).data('type') || 'accessory',
-                imei: $(this).data('imei'),
-                serial_number: $(this).data('serial_number')
-            };
-            cartItems.push(item);
-        });
-        formData.append('cart_items', JSON.stringify(cartItems));
-
-        // AJAX request to submit the payment details
-        $.ajax({
-            url: 'assets/php/helper/payment-helper/submit_payment.php',
-            method: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            dataType: 'json',
-            success: function (response) {
-                console.log("Server Response:", response); // Debugging line
-
-                if (response.redirect) {
-                    var printWindow = window.open(response.redirect, '_blank', 'width=526,height=600,scrollbars=no,toolbar=no,location=no,status=no,menubar=no');
-                    printWindow.onload = function () {
-                        printWindow.print();
-                        clearFormAndCart();
-                    };
-                }
-
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: response.success
-                    }).then(() => {
-                        clearFormAndCart();
-                    });
-                }
-
-                if (response.sms_success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'SMS Sent',
-                        text: response.sms_success
-                    }).then(() => {
-                        clearFormAndCart();
-                    });
-                } else if (response.sms_error) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'SMS Error',
-                        text: response.sms_error
-                    }).then(() => {
-                        clearFormAndCart();
-                    });
-                }
-
-                if (response.email_error) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Email Error',
-                        text: response.email_error
-                    }).then(() => {
-                        clearFormAndCart();
-                    });
-                } else if (response.email_success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: response.email_success
-                    }).then(() => {
-                        clearFormAndCart();
-                    });
-                }
-            },
-            error: function (xhr, status, error) {
-                console.log("AJAX Error:", xhr.responseText);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Unexpected Error',
-                    text: 'An error occurred: ' + xhr.responseText
-                }).then(() => {
-                    clearFormAndCart();
-                });
-            }
-        });
-
-    function clearFormAndCart() {
-        // Clear form fields
-        $('#paymentdetails').trigger("reset");
-        $('#customerdetails').trigger("reset");
-
-        // Clear cart table
-        $('#proposalList tbody').empty();
-
-        // Reset subtotal, total discount, and payable amount displays
-        $('#subtotal').text("LKR 0.00");
-        $('#bill_amount').val("0.00");
-        $('#total_discount').val("0.00");
-        $('#payable_amount').val("0.00");
-
-        // Clear additional fields or reset custom display elements if needed
-        $('#paymentwithcost1').text("");
-        $('#paymentwithcost2').text("");
-    }
-});
 
 </script>
 </body>

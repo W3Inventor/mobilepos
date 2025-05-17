@@ -186,15 +186,17 @@ include 'config/dbconnect.php';
                                             </thead>
                                             <tbody>
                                                 <?php
-                                                $query = "SELECT r.*, c.full_name FROM in_house_repair r
-                                                        LEFT JOIN customers c ON r.customer_id = c.customer_id
-                                                        ORDER BY r.ir_id DESC";
+                                                $query = "SELECT r.*, c.full_name, i.invoice_id
+                                                    FROM in_house_repair r
+                                                    LEFT JOIN customers c ON r.customer_id = c.customer_id
+                                                    LEFT JOIN repair_invoices i ON i.repair_id = r.ir_id AND i.status = 'unpaid'
+                                                    ORDER BY r.ir_id DESC";
                                                 $result = $conn->query($query);
                                                 while ($row = $result->fetch_assoc()):
                                                     $data_images = !empty($row['images']) ? explode(',', $row['images']) : [];
                                                     $status = $row['status'] ?? 'Submitted';
                                                 ?>
-                                                <tr data-repair-id="<?= $row['ir_id'] ?>">
+                                                <tr data-repair-id="<?= $row['ir_id'] ?>" data-invoice-id="<?= $row['invoice_id'] ?>" data-customer-id="<?= $row['customer_id'] ?>">
                                                     <td>#<?= htmlspecialchars($row['ir_id']) ?></td>
                                                     <td><?= htmlspecialchars($row['full_name']) ?></td>
                                                     <td><?= htmlspecialchars($row['imei']) ?></td>
@@ -454,6 +456,23 @@ include 'config/dbconnect.php';
                 }
             });
         });
+
+        // Handle credit-card button click (payment)
+        $(document).on('click', '.payment', function () {
+            const row = $(this).closest('tr');
+            const repairId = row.data('repair-id');
+            const invoiceId = row.data('invoice-id');
+            const customerId = row.data('customer-id');
+
+            if (repairId && invoiceId && customerId) {
+                window.location.href = 'repair-payment.php?repair_id=' + repairId + '&invoice_id=' + invoiceId + '&customer_id=' + customerId;
+            } else {
+                Swal.fire('Error', 'Repair, Invoice or Customer ID missing.', 'error');
+            }
+        });
+
+
+
 
         //filters
         $(document).ready(function () {

@@ -60,6 +60,10 @@ $stmt->close();
         .btn-danger {
             padding: 0.5rem 0.75rem;
         }
+        .select2-container {
+            min-width: 250px !important;
+        }
+
     </style>
 </head>
 <body>
@@ -121,120 +125,125 @@ $stmt->close();
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
-<script src="assets/vendors/js/jquery.min.js"></script>
-<script src="assets/vendors/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+
 <script>
-function initSelect2(select) {
-    select.select2({
-        placeholder: 'Search part, serial or ID',
-        tags: true,
-        minimumInputLength: 1,
-        selectOnClose: false,
-        tokenSeparators: [], // important: avoids space from confirming
-        ajax: {
-            url: 'assets/php/helper/repair-helper/search_parts.php',
-            dataType: 'json',
-            delay: 250,
-            data: params => ({ q: params.term }),
-            processResults: function (data) {
-                const results = [];
-                data.results.forEach(item => {
-                    if (item.serials && item.serials.length) {
-                        item.serials.forEach(sn => {
-                            results.push({
-                                id: `${item.id}||${sn}`,
-                                text: `${item.text} – ${sn}`
-                            });
-                        });
-                    } else {
-                        results.push({
-                            id: `${item.id}||`,
-                            text: item.text
-                        });
-                    }
-                });
-                return { results };
-            }
-        },
-        createTag: function (params) {
-            const term = $.trim(params.term);
-            if (term === '') return null;
-            return {
-                id: 'manual||',
-                text: term,
-                isManual: true
-            };
-        },
-        templateResult: function (data) {
-            if (data.isManual) {
-                return $('<span><strong>Custom:</strong> ' + data.text + '</span>');
-            }
-            return data.text;
-        },
-        templateSelection: function (data) {
-            return data.text;
-        },
-        width: '100%'
-    });
-}
+    function initSelect2(select) {
+        select.select2({
+            placeholder: 'Search part, serial or ID',
+            tags: true,
+            minimumInputLength: 1,
+            ajax: {
+                url: 'assets/php/helper/repair-helper/search_parts.php',
+                dataType: 'json',
+                delay: 250,
+                data: params => ({ q: params.term }),
+                processResults: function (data) {
+                    return {
+                        results: data.results.map(item => {
+                            return {
+                                id: item.id,
+                                text: item.text,
+                                serials: item.serials // attach serials for later use
+                            };
+                        })
+                    };
+                }
+            },
+            width: '100%'
+        });
+    }
 
-function addPartRow() {
-    const row = $('<tr>');
-    const part = $('<select name="parts[name][]" class="form-select part-name" required></select>');
-    const serial = $('<input type="text" name="parts[serial][]" class="form-control serial-box">');
-    const warranty = $('<input type="text" name="parts[warranty][]" class="form-control">');
-    const qty = $('<input type="number" name="parts[qty][]" value="1" min="1" class="form-control qty" required>');
-    const price = $('<input type="number" name="parts[price][]" step="0.01" class="form-control price" required>');
-    const removeBtn = $('<button type="button" class="btn btn-danger">X</button>').on('click', function () {
-        row.remove();
-        updateTotal();
-    });
+    function addPartRow() {
+        const row = $('<tr>');
+        const part = $('<select name="parts[name][]" class="form-select part-name" required></select>');
+        const serial = $('<input type="text" name="parts[serial][]" class="form-control serial-box">');
+        const warranty = $('<input type="text" name="parts[warranty][]" class="form-control">');
+        const qty = $('<input type="number" name="parts[qty][]" value="1" min="1" class="form-control qty" required>');
+        const price = $('<input type="number" name="parts[price][]" step="0.01" class="form-control price" required>');
+        const removeBtn = $('<button type="button" class="btn btn-danger">X</button>').on('click', function () {
+            row.remove();
+            updateTotal();
+        });
 
-    row.append($('<td>').append(part))
-        .append($('<td>').append(serial))
-        .append($('<td>').append(warranty))
-        .append($('<td>').append(qty))
-        .append($('<td>').append(price))
-        .append($('<td>').append(removeBtn));
+        row.append($('<td>').append(part))
+            .append($('<td>').append(serial))
+            .append($('<td>').append(warranty))
+            .append($('<td>').append(qty))
+            .append($('<td>').append(price))
+            .append($('<td>').append(removeBtn));
 
-    $('#partsBody').append(row);
-    initSelect2(part);
-}
+        $('#partsBody').append(row);
+        initSelect2(part);
+    }
 
-function updateTotal() {
-    let total = 0;
-    $('.qty').each(function () {
-        const qty = parseFloat($(this).val()) || 0;
-        const price = parseFloat($(this).closest('tr').find('.price').val()) || 0;
-        total += qty * price;
-    });
-    $('#grandTotal').text(total.toFixed(2));
-}
+    function updateTotal() {
+        let total = 0;
+        $('.qty').each(function () {
+            const qty = parseFloat($(this).val()) || 0;
+            const price = parseFloat($(this).closest('tr').find('.price').val()) || 0;
+            total += qty * price;
+        });
+        $('#grandTotal').text(total.toFixed(2));
+    }
 
-$(document).ready(() => {
-    addPartRow();
-});
+    $('#addPart').on('click', addPartRow);
+    $(document).on('input', '.qty, .price', updateTotal);
+    $(document).ready(() => addPartRow());
 
-$('#addPart').on('click', addPartRow);
-$(document).on('input', '.qty, .price', updateTotal);
+    $('#repairInvoiceForm').on('submit', function (e) {
+    e.preventDefault(); // prevent normal form submission
 
-$('#repairInvoiceForm').on('submit', function () {
+    const form = $(this);
+    const formData = form.serializeArray();
+
+    // Manually add total_amount since it's dynamically calculated
     const total = $('#grandTotal').text();
-    $('<input>').attr({
-        type: 'hidden',
-        name: 'total_amount',
-        value: total
-    }).appendTo(this);
+    formData.push({ name: 'total_amount', value: total });
+
+    $.ajax({
+        url: 'assets/php/helper/repair-helper/submit_repair_invoice.php',
+        type: 'POST',
+        data: formData,
+        dataType: 'json',
+        success: function (response) {
+            if (response.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Invoice Created',
+                    text: response.success,
+                    confirmButtonText: 'Done'
+                }).then(() => {
+                    window.location.href = 'in-house-repair.php';
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: response.error || 'Unknown error occurred'
+                });
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error("AJAX failed:", error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Server Error',
+                text: 'Failed to create invoice. Please try again.'
+            });
+        }
+    });
 });
 
-$(document).on('select2:select', '.part-name', function (e) {
+    // ✅ Handle selection from Select2 and auto-fill serial + price
+    $(document).on('select2:select', '.part-name', function (e) {
     const row = $(this).closest('tr');
     const selectedData = e.params.data;
-    const [accessoryId, serialNumber] = (selectedData.id || '').split('||');
+    const [accessoryId, serialNumber] = selectedData.id.split('||');
 
-    row.find('input[name^="parts[serial]"]').val(serialNumber || '');
+    // Autofill serial number (can be empty)
+    row.find('input[name^="parts[serial]"]').val(serialNumber);
 
     if (!accessoryId || isNaN(accessoryId)) return;
 
@@ -246,20 +255,15 @@ $(document).on('select2:select', '.part-name', function (e) {
         success: function (data) {
             if (data.prices?.length) {
                 row.find('input[name^="parts[price]"]').val(data.prices[0]);
-                updateTotal();
             }
         },
         error: function (xhr, status, error) {
-            console.error('AJAX ERROR:', error);
+            console.error("AJAX ERROR:", error);
         }
     });
 });
+
 </script>
-
-
-
-
-
 
 </body>
 </html>

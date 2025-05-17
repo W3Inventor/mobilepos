@@ -348,43 +348,30 @@ include 'config/dbconnect.php';
                     const row = $(this).closest('tr');
                     const repairId = row.data('repair-id');
                     const status = row.find('.repair-status').val();
-                    const customerName = row.find('td').eq(1).text(); // adjust if needed
-                    const repairLabel = row.find('td').eq(0).text().replace('#', '');
 
                     if (status === 'Ready to Pickup') {
-                        Swal.fire({
-                            title: 'Enter Actual Price',
-                            input: 'number',
-                            inputLabel: 'Final amount to be paid by customer',
-                            inputAttributes: {
-                                min: 0,
-                                step: 0.01
-                            },
-                            showCancelButton: true,
-                            confirmButtonText: 'Confirm & Send SMS'
-                        }).then((result) => {
-                            if (result.isConfirmed && result.value !== '') {
-                                const actualPrice = result.value;
-
-                                $.post('assets/php/helper/repair-helper/update_repair_status.php', {
-                                    repair_id: repairId,
-                                    status: status,
-                                    actual_price: actualPrice
-                                }, function (res) {
-                                    if (res.success) {
-                                        Swal.fire('Success', res.success, 'success');
-                                        row.find('.repair-status').data('original', status);
-                                        row.find('.save-status, .cancel-edit').addClass('d-none');
-                                        row.find('.delete-status').removeClass('d-none');
-                                        row.find('.payment').toggleClass('d-none', false);
-                                    } else {
-                                        Swal.fire('Error', res.error || 'Update failed', 'error');
-                                    }
-                                }, 'json');
+                        // First update status only, then redirect to repair-pos.php
+                        $.post('assets/php/helper/repair-helper/update_repair_status.php', {
+                            repair_id: repairId,
+                            status: status
+                        }, function (res) {
+                            if (res.success) {
+                                Swal.fire({
+                                    title: 'Redirecting...',
+                                    text: 'Please wait while we prepare the invoice page.',
+                                    icon: 'success',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                }).then(() => {
+                                    // Redirect to repair-pos.php with the repair ID
+                                    window.location.href = 'repair-pos.php?repair_id=' + repairId;
+                                });
+                            } else {
+                                Swal.fire('Error', res.error || 'Update failed', 'error');
                             }
-                        });
+                        }, 'json');
                     } else {
-                        // Normal flow without SMS
+                        // Normal status update flow
                         $.post('assets/php/helper/repair-helper/update_repair_status.php', {
                             repair_id: repairId,
                             status: status

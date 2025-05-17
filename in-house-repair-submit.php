@@ -60,7 +60,7 @@ input[type=number] {
         color:#283c50 !important;
         font-weight: 500;
         line-height: 1.5;
-        ont-size: 13px;
+        font-size: 13px;
 
     }
 

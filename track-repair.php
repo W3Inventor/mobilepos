@@ -165,6 +165,33 @@ $progress_width = $progress_width_map[$current_step_index] ?? 10;
                 box-shadow: 0 0 0 0 rgba(255, 0, 128, 0);
             }
         }
+        .timestamp {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            color: #555;
+            background-color: #f5f5f5;
+            padding: 6px 10px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-right: 8px;
+            font-weight: 500 !important;
+        }
+
+        .timestamp .divider {
+            margin: 0 8px;
+            color: #999;
+            font-weight: 600;
+        }
+
+        .status {
+            font-weight: bold;
+            color: #007bff;
+            font-size: 14px;
+            background: #e8f0fe;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
     </style>
 </head>
 <body class="container py-5">
@@ -201,7 +228,8 @@ $progress_width = $progress_width_map[$current_step_index] ?? 10;
             <h5 class="mb-3">Status Timeline</h5>
             <?php foreach ($status_history as $status => $timestamp): ?>
                 <div class="status-entry">
-                    <time><?= date('Y-m-d h:i A', strtotime($timestamp)) ?></time> – <strong><?= ucfirst($status) ?></strong>
+                    <time class="timestamp"><?= date('Y-m-d', strtotime($timestamp)) ?> <span class="divider">|</span><?= date('h:i A', strtotime($timestamp)) ?></time> – <strong class="status"><?= ucfirst($status) ?></strong>
+
                 </div>
             <?php endforeach; ?>
         </div>

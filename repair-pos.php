@@ -172,46 +172,35 @@ $stmt->close();
     });
 
     // Auto-fill serial + price when part is selected
-$(document).on('change', '.part-name', function () {
+    $(document).on('change', '.part-name', function() {
     const row = $(this).closest('tr');
     const accessoryId = $(this).val();
-    if (!accessoryId) return;
+    if (!accessoryId) return;  // No valid ID (skip autofill for new manual entries)
 
     $.ajax({
         url: 'assets/php/helper/repair-helper/get-product-details.php',
         method: 'POST',
         data: { accessory_id: accessoryId },
         dataType: 'json',
-        success: function (data) {
+        success: function(data) {
+            // Autofill price if available
             if (data.prices && data.prices.length > 0) {
-                // Set the first price
                 row.find('input[name^="parts[price]"]').val(data.prices[0]);
             }
-
+            // Replace serial input with dropdown if available
             if (data.serials && data.serials.length > 0) {
                 const serialInput = row.find('input[name^="parts[serial]"]');
-                const serialSelect = $('<select class="form-select serial-dropdown"></select>');
-
+                const serialSelect = $('<select name="parts[serial][]" class="form-select"></select>');
                 serialSelect.append('<option value="">Select serial</option>');
                 data.serials.forEach(serial => {
                     serialSelect.append(`<option value="${serial}">${serial}</option>`);
                 });
-
                 serialInput.replaceWith(serialSelect);
-
-                // When serial is selected, insert it back into a hidden input before submit
-                serialSelect.on('change', function () {
-                    const selectedSerial = $(this).val();
-                    const hiddenInput = $('<input type="hidden" name="parts[serial][]" />');
-                    hiddenInput.val(selectedSerial);
-                    $(this).after(hiddenInput);
-                    $(this).remove(); // remove dropdown once selected
-                });
-
             }
+            // If no prices or serials, do nothing (inputs remain editable)
         },
-        error: function (xhr, status, err) {
-            console.error('Failed to fetch product details:', err);
+        error: function(xhr, status, error) {
+            console.error('Failed to fetch product details:', error);
         }
     });
 });

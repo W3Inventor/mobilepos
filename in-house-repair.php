@@ -105,31 +105,31 @@ include 'config/dbconnect.php';
                                 <div class="dropdown-menu dropdown-menu-end">
                                     <div class="dropdown-item">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="instock" checked="checked">
+                                            <input type="checkbox" class="custom-control-input" id="submitted" checked="checked">
                                             <label class="custom-control-label c-pointer" for="submitted">Submitted</label>
                                         </div>
                                     </div>
                                     <div class="dropdown-item">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="soldout" checked="checked">
+                                            <input type="checkbox" class="custom-control-input" id="processing" checked="checked">
                                             <label class="custom-control-label c-pointer" for="processing">Processing</label>
                                         </div>
                                     </div>
                                     <div class="dropdown-item">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="newmobile" checked="checked">
+                                            <input type="checkbox" class="custom-control-input" id="fixed" checked="checked">
                                             <label class="custom-control-label c-pointer" for="fixed">Fixed</label>
                                         </div>
                                     </div>
                                     <div class="dropdown-item">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="usedmobile" checked="checked">
+                                            <input type="checkbox" class="custom-control-input" id="redytopickup" checked="checked">
                                             <label class="custom-control-label c-pointer" for="redytopickup">Ready to Pickup</label>
                                         </div>
                                     </div>
                                     <div class="dropdown-item">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="usedmobile" checked="checked">
+                                            <input type="checkbox" class="custom-control-input" id="pickup" checked="checked">
                                             <label class="custom-control-label c-pointer" for="pickup">Paid & Pickup</label>
                                         </div>
                                     </div>
@@ -348,22 +348,60 @@ include 'config/dbconnect.php';
                     const row = $(this).closest('tr');
                     const repairId = row.data('repair-id');
                     const status = row.find('.repair-status').val();
+                    const customerName = row.find('td').eq(1).text(); // adjust if needed
+                    const repairLabel = row.find('td').eq(0).text().replace('#', '');
 
-                    $.post('assets/php/helper/repair-helper/update_repair_status.php', {
-                        repair_id: repairId,
-                        status: status
-                    }, function (res) {
-                        if (res.success) {
-                            Swal.fire('Success', res.success, 'success');
-                            row.find('.repair-status').data('original', status);
-                            row.find('.save-status, .cancel-edit').addClass('d-none');
-                            row.find('.delete-status').removeClass('d-none');
-                            row.find('.payment').toggleClass('d-none', status !== 'Ready to Pickup');
-                        } else {
-                            Swal.fire('Error', res.error || 'Update failed', 'error');
-                        }
-                    }, 'json');
+                    if (status === 'Ready to Pickup') {
+                        Swal.fire({
+                            title: 'Enter Actual Price',
+                            input: 'number',
+                            inputLabel: 'Final amount to be paid by customer',
+                            inputAttributes: {
+                                min: 0,
+                                step: 0.01
+                            },
+                            showCancelButton: true,
+                            confirmButtonText: 'Confirm & Send SMS'
+                        }).then((result) => {
+                            if (result.isConfirmed && result.value !== '') {
+                                const actualPrice = result.value;
+
+                                $.post('assets/php/helper/repair-helper/update_repair_status.php', {
+                                    repair_id: repairId,
+                                    status: status,
+                                    actual_price: actualPrice
+                                }, function (res) {
+                                    if (res.success) {
+                                        Swal.fire('Success', res.success, 'success');
+                                        row.find('.repair-status').data('original', status);
+                                        row.find('.save-status, .cancel-edit').addClass('d-none');
+                                        row.find('.delete-status').removeClass('d-none');
+                                        row.find('.payment').toggleClass('d-none', false);
+                                    } else {
+                                        Swal.fire('Error', res.error || 'Update failed', 'error');
+                                    }
+                                }, 'json');
+                            }
+                        });
+                    } else {
+                        // Normal flow without SMS
+                        $.post('assets/php/helper/repair-helper/update_repair_status.php', {
+                            repair_id: repairId,
+                            status: status
+                        }, function (res) {
+                            if (res.success) {
+                                Swal.fire('Success', res.success, 'success');
+                                row.find('.repair-status').data('original', status);
+                                row.find('.save-status, .cancel-edit').addClass('d-none');
+                                row.find('.delete-status').removeClass('d-none');
+                                row.find('.payment').toggleClass('d-none', status !== 'Ready to Pickup');
+                            } else {
+                                Swal.fire('Error', res.error || 'Update failed', 'error');
+                            }
+                        }, 'json');
+                    }
                 });
+
 
                 // Image preview (lightbox-style)
                 $(document).on('click', '.view-images', function () {
@@ -438,6 +476,41 @@ include 'config/dbconnect.php';
                 });
             });
 
+            //filters
+            $(document).ready(function () {
+                function applyFilters() {
+                    let activeStatuses = [];
+
+                    // Collect selected filters
+                    $('.filter-dropdown input[type="checkbox"]').each(function () {
+                        if ($(this).is(':checked')) {
+                            const label = $(this).next('label').attr('for');
+                            activeStatuses.push(label.replace('submitted', 'Submitted')
+                                                    .replace('processing', 'Processing')
+                                                    .replace('fixed', 'Fixed')
+                                                    .replace('redytopickup', 'Ready to Pickup')
+                                                    .replace('pickup', 'Paid & Pickup'));
+                        }
+                    });
+
+                    // Loop through rows and show/hide based on status
+                    $('#proposalList tbody tr').each(function () {
+                        const row = $(this);
+                        const status = row.find('.repair-status').val();
+                        if (activeStatuses.includes(status)) {
+                            row.show();
+                        } else {
+                            row.hide();
+                        }
+                    });
+                }
+
+                // Attach filter logic
+                $('.filter-dropdown input[type="checkbox"]').on('change', applyFilters);
+
+                // Run once on load
+                applyFilters();
+            });
         </script>
 
     </body>

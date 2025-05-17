@@ -1,8 +1,20 @@
 <?php
 
+ob_start();
+
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    echo "<script>console.error('PHP Error: " . addslashes("$errstr in $errfile on line $errline") . "');</script>";
+    return false; // allow normal PHP error handler to run too
+});
+
+set_exception_handler(function($exception) {
+    echo "<script>console.error('PHP Exception: " . addslashes($exception->getMessage()) . "');</script>";
+});
+
 
 session_start();
 if (!isset($_SESSION['user_id'])) {
@@ -35,14 +47,11 @@ $stmt->close();
     <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
     <link rel="stylesheet" href="assets/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/vendors/css/vendors.min.css">
-    <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2.min.css">
-    <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2-theme.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <link rel="stylesheet" href="assets/css/theme.min.css">
 
     <style>
-        .table td input {
+        .table td input, .table td select {
             width: 100%;
         }
         .form-select, .form-control {
@@ -110,20 +119,31 @@ $stmt->close();
     </div>
 </main>
 
-<!-- FIXED LOAD ORDER -->
-<script src="assets/vendors/js/jquery.min.js"></script>
-<script src="assets/vendors/js/select2.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
 <script>
     function initSelect2(select) {
         select.select2({
-            placeholder: 'Search part or type to add',
+            placeholder: 'Search part, serial or ID',
             tags: true,
             minimumInputLength: 1,
             ajax: {
                 url: 'assets/php/helper/repair-helper/search_parts.php',
                 dataType: 'json',
                 delay: 250,
-                data: params => ({ q: params.term })
+                data: params => ({ q: params.term }),
+                processResults: function (data) {
+                    return {
+                        results: data.results.map(item => {
+                            return {
+                                id: item.id,
+                                text: item.text,
+                                serials: item.serials // attach serials for later use
+                            };
+                        })
+                    };
+                }
             },
             width: '100%'
         });
@@ -132,7 +152,7 @@ $stmt->close();
     function addPartRow() {
         const row = $('<tr>');
         const part = $('<select name="parts[name][]" class="form-select part-name" required></select>');
-        const serial = $('<input type="text" name="parts[serial][]" class="form-control">');
+        const serial = $('<input type="text" name="parts[serial][]" class="form-control serial-box">');
         const warranty = $('<input type="text" name="parts[warranty][]" class="form-control">');
         const qty = $('<input type="number" name="parts[qty][]" value="1" min="1" class="form-control qty" required>');
         const price = $('<input type="number" name="parts[price][]" step="0.01" class="form-control price" required>');
@@ -154,16 +174,16 @@ $stmt->close();
 
     function updateTotal() {
         let total = 0;
-        $('.qty').each(function (i, el) {
-            const qty = parseFloat($(el).val()) || 0;
-            const price = parseFloat($(el).closest('tr').find('.price').val()) || 0;
+        $('.qty').each(function () {
+            const qty = parseFloat($(this).val()) || 0;
+            const price = parseFloat($(this).closest('tr').find('.price').val()) || 0;
             total += qty * price;
         });
         $('#grandTotal').text(total.toFixed(2));
     }
 
-    $(document).on('input', '.qty, .price', updateTotal);
     $('#addPart').on('click', addPartRow);
+    $(document).on('input', '.qty, .price', updateTotal);
     $(document).ready(() => addPartRow());
 
     $('#repairInvoiceForm').on('submit', function () {
@@ -171,50 +191,34 @@ $stmt->close();
         $('<input>').attr({ type: 'hidden', name: 'total_amount', value: total }).appendTo(this);
     });
 
-    // Auto-fill serial + price when part is selected
-    $(document).on('change', '.part-name', function() {
+    // ✅ Handle selection from Select2 and auto-fill serial + price
+    $(document).on('select2:select', '.part-name', function (e) {
     const row = $(this).closest('tr');
-    const accessoryId = $(this).val();
-    if (!accessoryId) return;  // No valid ID (skip autofill for new manual entries)
+    const selectedData = e.params.data;
+    const [accessoryId, serialNumber] = selectedData.id.split('||');
+
+    // Autofill serial number (can be empty)
+    row.find('input[name^="parts[serial]"]').val(serialNumber);
+
+    if (!accessoryId || isNaN(accessoryId)) return;
 
     $.ajax({
         url: 'assets/php/helper/repair-helper/get-product-details.php',
         method: 'POST',
         data: { accessory_id: accessoryId },
         dataType: 'json',
-        success: function(data) {
-            // Autofill price if available
-            if (data.prices && data.prices.length > 0) {
+        success: function (data) {
+            if (data.prices?.length) {
                 row.find('input[name^="parts[price]"]').val(data.prices[0]);
             }
-            // Replace serial input with dropdown if available
-            if (data.serials && data.serials.length > 0) {
-                const serialInput = row.find('input[name^="parts[serial]"]');
-                const serialSelect = $('<select name="parts[serial][]" class="form-select"></select>');
-                serialSelect.append('<option value="">Select serial</option>');
-                data.serials.forEach(serial => {
-                    serialSelect.append(`<option value="${serial}">${serial}</option>`);
-                });
-                serialInput.replaceWith(serialSelect);
-            }
-            // If no prices or serials, do nothing (inputs remain editable)
         },
-        error: function(xhr, status, error) {
-            console.error('Failed to fetch product details:', error);
+        error: function (xhr, status, error) {
+            console.error("AJAX ERROR:", error);
         }
     });
 });
 
 </script>
 
-<script src="assets/vendors/js/vendors.min.js"></script>
-<script src="assets/vendors/js/select2.min.js"></script>
-    <script src="assets/vendors/js/select2-active.min.js"></script>
-<script src="assets/js/common-init.min.js"></script>
-<script src="assets/js/settings-init.min.js"></script>
-<script src="assets/js/theme-customizer-init.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>
-
-

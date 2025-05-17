@@ -6,65 +6,74 @@ error_reporting(E_ALL);
 header('Content-Type: application/json; charset=UTF-8');
 require '../../../../config/dbconnect.php';
 
-// Get and sanitize the query
 $q = isset($_GET['q']) ? trim($_GET['q']) : '';
 if ($q === '') {
     echo json_encode(['results' => []]);
     exit;
 }
 
-// Split query into keywords
+// Tokenize search query
 $keywords = preg_split('/\s+/', strtolower($q));
 $conditions = [];
 $types = '';
 $params = [];
 
 foreach ($keywords as $word) {
-    $word = trim($word);
     if ($word === '') continue;
-    $conditions[] = "(LOWER(accessory_name) LIKE ? OR LOWER(brand) LIKE ? OR accessory_id LIKE ?)";
-    $types .= 'sss';
-    $param = "%$word%";
-    $params[] = $param;
-    $params[] = $param;
-    $params[] = $param;
+    $word = "%$word%";
+    $conditions[] = "(LOWER(a.accessory_name) LIKE ? OR LOWER(a.brand) LIKE ? OR a.accessory_id LIKE ? OR LOWER(sn.serial_number) LIKE ?)";
+    $types .= 'ssss';
+    $params[] = $word;
+    $params[] = $word;
+    $params[] = $word;
+    $params[] = $word;
 }
 
-if (empty($conditions)) {
-    echo json_encode(['results' => []]);
-    exit;
-}
+$whereClause = implode(' AND ', $conditions);
 
-// Build SQL
-$sql = "SELECT accessory_id, accessory_name, brand 
-        FROM accessories 
-        WHERE " . implode(' AND ', $conditions) . " 
-        ORDER BY accessory_name 
-        LIMIT 25";
+// Query including accessories WITH and WITHOUT serial numbers
+$sql = "
+    SELECT a.accessory_id, a.brand, a.accessory_name, sn.serial_number
+    FROM accessories a
+    LEFT JOIN serial_numbers sn ON a.accessory_id = sn.accessory_id AND sn.status = 'In Stock'
+    WHERE $whereClause
+    ORDER BY a.accessory_name
+    LIMIT 30
+";
 
 $stmt = $conn->prepare($sql);
 if (!$stmt) {
-    error_log("MySQL prepare failed: " . $conn->error);
     http_response_code(500);
     echo json_encode(['results' => []]);
     exit;
 }
 
-// Bind dynamic parameters
 $stmt->bind_param($types, ...$params);
 $stmt->execute();
-$stmt->store_result();
-$stmt->bind_result($accessory_id, $accessory_name, $brand);
+$result = $stmt->get_result();
 
-// Format results
+$seen = []; // prevent duplicate accessories
 $items = [];
-while ($stmt->fetch()) {
-    $items[] = [
-        'id' => (string)$accessory_id,
-        'text' => "$brand $accessory_name (ID: $accessory_id)"
-    ];
+
+while ($row = $result->fetch_assoc()) {
+    $accessoryId = $row['accessory_id'];
+    $serial = $row['serial_number'];
+
+    $uniqueKey = $accessoryId . '||' . ($serial ?? '');
+
+    // Use both cases: one with serial, one fallback
+    if ($serial) {
+        $items[] = [
+            'id' => $uniqueKey,
+            'text' => "{$row['brand']} {$row['accessory_name']} (SN: {$serial})"
+        ];
+    } elseif (!isset($seen[$accessoryId])) {
+        $items[] = [
+            'id' => $accessoryId . '||',
+            'text' => "{$row['brand']} {$row['accessory_name']} (No Serial)"
+        ];
+        $seen[$accessoryId] = true;
+    }
 }
 
-$stmt->close();
-$conn->close();
 echo json_encode(['results' => $items]);

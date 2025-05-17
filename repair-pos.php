@@ -131,31 +131,36 @@ function initSelect2(select) {
         placeholder: 'Search part, serial or ID',
         tags: true,
         minimumInputLength: 1,
+        selectOnClose: false,
+        tokenSeparators: [], // important: avoids space from confirming
         ajax: {
             url: 'assets/php/helper/repair-helper/search_parts.php',
             dataType: 'json',
             delay: 250,
             data: params => ({ q: params.term }),
             processResults: function (data) {
-                return {
-                    results: data.results.map(item => ({
-                        id: item.id,
-                        text: item.text
-                    }))
-                };
+                const results = [];
+                data.results.forEach(item => {
+                    if (item.serials && item.serials.length) {
+                        item.serials.forEach(sn => {
+                            results.push({
+                                id: `${item.id}||${sn}`,
+                                text: `${item.text} – ${sn}`
+                            });
+                        });
+                    } else {
+                        results.push({
+                            id: `${item.id}||`,
+                            text: item.text
+                        });
+                    }
+                });
+                return { results };
             }
         },
-        width: '100%',
-        insertTag: () => {}, // ⛔ Prevent automatic tag insertion
         createTag: function (params) {
             const term = $.trim(params.term);
-            const originalEvent = params.originalEvent;
-
-            // ✅ Only allow tag if Enter was pressed
-            if (!originalEvent || originalEvent.type !== 'keydown' || originalEvent.key !== 'Enter') {
-                return null;
-            }
-
+            if (term === '') return null;
             return {
                 id: 'manual||',
                 text: term,
@@ -170,90 +175,87 @@ function initSelect2(select) {
         },
         templateSelection: function (data) {
             return data.text;
-        }
+        },
+        width: '100%'
     });
 }
 
-
-
-
-    function addPartRow() {
-        const row = $('<tr>');
-        const part = $('<select name="parts[name][]" class="form-select part-name" required></select>');
-        const serial = $('<input type="text" name="parts[serial][]" class="form-control serial-box">');
-        const warranty = $('<input type="text" name="parts[warranty][]" class="form-control">');
-        const qty = $('<input type="number" name="parts[qty][]" value="1" min="1" class="form-control qty" required>');
-        const price = $('<input type="number" name="parts[price][]" step="0.01" class="form-control price" required>');
-        const removeBtn = $('<button type="button" class="btn btn-danger">X</button>').on('click', function () {
-            row.remove();
-            updateTotal();
-        });
-
-        row.append($('<td>').append(part))
-            .append($('<td>').append(serial))
-            .append($('<td>').append(warranty))
-            .append($('<td>').append(qty))
-            .append($('<td>').append(price))
-            .append($('<td>').append(removeBtn));
-
-        $('#partsBody').append(row);
-        initSelect2(part);
-    }
-
-    function updateTotal() {
-        let total = 0;
-        $('.qty').each(function () {
-            const qty = parseFloat($(this).val()) || 0;
-            const price = parseFloat($(this).closest('tr').find('.price').val()) || 0;
-            total += qty * price;
-        });
-        $('#grandTotal').text(total.toFixed(2));
-    }
-
-    $(document).ready(() => {
-        addPartRow();
+function addPartRow() {
+    const row = $('<tr>');
+    const part = $('<select name="parts[name][]" class="form-select part-name" required></select>');
+    const serial = $('<input type="text" name="parts[serial][]" class="form-control serial-box">');
+    const warranty = $('<input type="text" name="parts[warranty][]" class="form-control">');
+    const qty = $('<input type="number" name="parts[qty][]" value="1" min="1" class="form-control qty" required>');
+    const price = $('<input type="number" name="parts[price][]" step="0.01" class="form-control price" required>');
+    const removeBtn = $('<button type="button" class="btn btn-danger">X</button>').on('click', function () {
+        row.remove();
+        updateTotal();
     });
 
-    $('#addPart').on('click', addPartRow);
-    $(document).on('input', '.qty, .price', updateTotal);
+    row.append($('<td>').append(part))
+        .append($('<td>').append(serial))
+        .append($('<td>').append(warranty))
+        .append($('<td>').append(qty))
+        .append($('<td>').append(price))
+        .append($('<td>').append(removeBtn));
 
-    $('#repairInvoiceForm').on('submit', function () {
-        const total = $('#grandTotal').text();
-        $('<input>').attr({
-            type: 'hidden',
-            name: 'total_amount',
-            value: total
-        }).appendTo(this);
+    $('#partsBody').append(row);
+    initSelect2(part);
+}
+
+function updateTotal() {
+    let total = 0;
+    $('.qty').each(function () {
+        const qty = parseFloat($(this).val()) || 0;
+        const price = parseFloat($(this).closest('tr').find('.price').val()) || 0;
+        total += qty * price;
     });
+    $('#grandTotal').text(total.toFixed(2));
+}
 
-    $(document).on('select2:select', '.part-name', function (e) {
-        const row = $(this).closest('tr');
-        const selectedData = e.params.data;
-        const [accessoryId, serialNumber] = (selectedData.id || '').split('||');
+$(document).ready(() => {
+    addPartRow();
+});
 
-        // Autofill serial number field
-        row.find('input[name^="parts[serial]"]').val(serialNumber || '');
+$('#addPart').on('click', addPartRow);
+$(document).on('input', '.qty, .price', updateTotal);
 
-        // Skip if it's a custom/manual entry
-        if (!accessoryId || isNaN(accessoryId)) return;
+$('#repairInvoiceForm').on('submit', function () {
+    const total = $('#grandTotal').text();
+    $('<input>').attr({
+        type: 'hidden',
+        name: 'total_amount',
+        value: total
+    }).appendTo(this);
+});
 
-        $.ajax({
-            url: 'assets/php/helper/repair-helper/get-product-details.php',
-            method: 'POST',
-            data: { accessory_id: accessoryId },
-            dataType: 'json',
-            success: function (data) {
-                if (data.prices?.length) {
-                    row.find('input[name^="parts[price]"]').val(data.prices[0]);
-                    updateTotal();
-                }
-            },
-            error: function (xhr, status, error) {
-                console.error("AJAX ERROR:", error);
+$(document).on('select2:select', '.part-name', function (e) {
+    const row = $(this).closest('tr');
+    const selectedData = e.params.data;
+    const [accessoryId, serialNumber] = (selectedData.id || '').split('||');
+
+    row.find('input[name^="parts[serial]"]').val(serialNumber || '');
+
+    if (!accessoryId || isNaN(accessoryId)) return;
+
+    $.ajax({
+        url: 'assets/php/helper/repair-helper/get-product-details.php',
+        method: 'POST',
+        data: { accessory_id: accessoryId },
+        dataType: 'json',
+        success: function (data) {
+            if (data.prices?.length) {
+                row.find('input[name^="parts[price]"]').val(data.prices[0]);
+                updateTotal();
             }
-        });
+        },
+        error: function (xhr, status, error) {
+            console.error('AJAX ERROR:', error);
+        }
     });
+});
 </script>
+
 
 
 

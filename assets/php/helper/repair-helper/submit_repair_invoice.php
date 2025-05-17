@@ -39,25 +39,39 @@ try {
     // 2. Process each part line
     $num_parts = count($part_names);
     for ($i = 0; $i < $num_parts; $i++) {
-        $item_name = trim($part_names[$i] ?? '');
-        $serial    = trim($part_serials[$i] ?? '');
-        $warranty  = trim($part_warranties[$i] ?? '');
-        $qty       = (int)($part_qty[$i] ?? 0);
-        $price     = (float)($part_price[$i] ?? 0);
-
-        if ($item_name === '' || $qty <= 0) continue;
+        $raw_id   = trim($part_names[$i] ?? '');
+        $serial   = trim($part_serials[$i] ?? '');
+        $warranty = trim($part_warranties[$i] ?? '');
+        $qty      = (int)($part_qty[$i] ?? 0);
+        $price    = (float)($part_price[$i] ?? 0);
 
         $accessory_id = null;
+        $item_name = '';
+        $serial_from_id = '';
 
-        // 2a. Try to find matching accessory by name
-        $stmt = $conn->prepare("SELECT accessory_id FROM accessories WHERE accessory_name = ?");
-        $stmt->bind_param("s", $item_name);
-        $stmt->execute();
-        $stmt->bind_result($aid);
-        if ($stmt->fetch()) {
-            $accessory_id = $aid;
+        if (str_starts_with($raw_id, 'static')) {
+            $item_name = 'Repairing Cost';
+        } elseif (strpos($raw_id, '||') !== false) {
+            [$accessory_id, $serial_from_id] = explode('||', $raw_id);
+            $accessory_id = is_numeric($accessory_id) ? (int)$accessory_id : null;
+
+            if ($accessory_id !== null) {
+                $stmt = $conn->prepare("SELECT accessory_name FROM accessories WHERE accessory_id = ?");
+                $stmt->bind_param("i", $accessory_id);
+                $stmt->execute();
+                $stmt->bind_result($fetched_name);
+                if ($stmt->fetch()) {
+                    $item_name = $fetched_name;
+                }
+                $stmt->close();
+            }
+        } else {
+            $item_name = $raw_id;
         }
-        $stmt->close();
+
+        $serial = $serial ?: $serial_from_id;
+
+        if ($item_name === '' || $qty <= 0) continue;
 
         // 2b. If matched, update stock and serial number
         if ($accessory_id !== null) {

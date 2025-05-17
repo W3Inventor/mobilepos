@@ -140,20 +140,30 @@ $stmt->close();
                 delay: 250,
                 data: params => ({ q: params.term }),
                 processResults: function (data) {
-                    return {
-                        results: data.results.map(item => {
-                            return {
-                                id: item.id,
-                                text: item.text,
-                                serials: item.serials // attach serials for later use
-                            };
-                        })
+                    const staticOption = {
+                        id: 'static||', // static ID
+                        text: 'Repairing Cost',
+                        serials: []
                     };
+
+                    const results = data.results.map(item => ({
+                        id: item.id,
+                        text: item.text,
+                        serials: item.serials || []
+                    }));
+
+                    // If not already included, push "Repairing Cost" to top
+                    if (!results.some(r => r.text === 'Repairing Cost')) {
+                        results.unshift(staticOption);
+                    }
+
+                    return { results };
                 }
             },
             width: '100%'
         });
     }
+
 
     function addPartRow() {
         const row = $('<tr>');
@@ -242,10 +252,16 @@ $stmt->close();
     const selectedData = e.params.data;
     const [accessoryId, serialNumber] = selectedData.id.split('||');
 
-    // Autofill serial number (can be empty)
-    row.find('input[name^="parts[serial]"]').val(serialNumber);
+// Autofill serial
+row.find('input[name^="parts[serial]"]').val(serialNumber);
 
-    if (!accessoryId || isNaN(accessoryId)) return;
+// Skip AJAX for "Repairing Cost" (no accessory ID)
+if (selectedData.text === 'Repairing Cost') {
+    return;
+}
+
+if (!accessoryId || isNaN(accessoryId)) return;
+
 
     $.ajax({
         url: 'assets/php/helper/repair-helper/get-product-details.php',
@@ -255,7 +271,9 @@ $stmt->close();
         success: function (data) {
             if (data.prices?.length) {
                 row.find('input[name^="parts[price]"]').val(data.prices[0]);
+                updateTotal(); // ✅ Trigger total update after setting price
             }
+
         },
         error: function (xhr, status, error) {
             console.error("AJAX ERROR:", error);
@@ -267,3 +285,4 @@ $stmt->close();
 
 </body>
 </html>
+

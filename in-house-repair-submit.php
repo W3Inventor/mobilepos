@@ -229,7 +229,7 @@ input[type=number] {
             <div class="row">
                 <div class="col-12">
                     <div class="mb-3">
-                        <label>Upload Images<span class="text-danger">*</span></label>
+                        <label>Upload Images</label>
                         <input 
                             type="file" 
                             name="images[]" 

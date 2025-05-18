@@ -4,3 +4,5 @@
 
 [2025-05-17 18:40:28] ❌ Column 'payment_cost_1' cannot be null | FILE: /Applications/XAMPP/xamppfiles/htdocs/pos/assets/php/helper/payment-helper/submit_repair_payment.php | LINE: 75
 [2025-05-17 18:43:10] ❌ The number of elements in the type definition string must match the number of bind variables | FILE: /Applications/XAMPP/xamppfiles/htdocs/pos/assets/php/helper/payment-helper/submit_repair_payment.php | LINE: 116
+[2025-05-17 21:45:43] ❌ Missing required input fields. | FILE: /Applications/XAMPP/xamppfiles/htdocs/pos/assets/php/helper/payment-helper/submit_repair_payment.php | LINE: 34
+[2025-05-17 21:45:55] ❌ Missing required input fields. | FILE: /Applications/XAMPP/xamppfiles/htdocs/pos/assets/php/helper/payment-helper/submit_repair_payment.php | LINE: 34

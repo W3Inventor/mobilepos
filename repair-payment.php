@@ -509,29 +509,46 @@ if ($result->num_rows > 0) {
             
 
             $.ajax({
-                url: 'assets/php/helper/payment-helper/submit_repair_payment.php',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    repair_id: <?php echo $repair_id; ?>,
-                    customer: customer,
-                    payment: payment,
-                    cart_items: cart_items
-                }),
-                success: function (response) {
-                    if (response.success) {
-                        Swal.fire('Success', response.message, 'success').then(() => {
-                            window.location.href = 'in-house-repair.php';
-                        });
-                    } else {
-                        Swal.fire('Error', response.message, 'error');
-                    }
-                },
-                error: function () {
-                    Swal.fire('Error', 'An unexpected error occurred.', 'error');
+            url: 'assets/php/helper/payment-helper/submit_repair_payment.php',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                repair_id: <?php echo $repair_id; ?>,
+                customer: customer,
+                payment: payment,
+                cart_items: cart_items
+            }),
+            success: function(response) {
+                // Print invoice PDF if redirect link is provided
+                if (response.redirect) {
+                    var printWindow = window.open(response.redirect, '_blank', 'width=526,height=600,scrollbars=no,toolbar=no');
+                    printWindow.onload = function () {
+                        printWindow.print();
+                        clearFormAndCart();
+                    };
                 }
-            });
+                // Show success alert
+                if (response.success) {
+                    Swal.fire('Success', response.success, 'Print Invoice Success').then(clearFormAndCart);
+                }
+                // SMS notifications
+                if (response.sms_success) {
+                    Swal.fire('SMS Sent', response.sms_success, 'SMS Sent').then(clearFormAndCart);
+                } else if (response.sms_error) {
+                    Swal.fire('SMS Error', response.sms_error, 'warning').then(clearFormAndCart);
+                }
+                // Email notifications
+                if (response.email_success) {
+                    Swal.fire('Email Sent', response.email_success, 'Email Sent').then(clearFormAndCart);
+                } else if (response.email_error) {
+                    Swal.fire('Email Error', response.email_error, 'warning').then(clearFormAndCart);
+                }
+            },
+            error: function(xhr) {
+                Swal.fire('Error', 'An unexpected error occurred: ' + xhr.responseText, 'error');
+            }
         });
+ 
 
 
         $('#clearCustomerDetails').on('click', function () {
@@ -572,7 +589,7 @@ if ($result->num_rows > 0) {
                 });
             }
         });
-
+    });
 
 
 

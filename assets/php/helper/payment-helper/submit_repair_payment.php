@@ -1,4 +1,7 @@
+
 <?php
+// Updated submit_repair_payment.php - now with email and PDF generation logic from submit_payment.php
+
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../../../logs/php_error.log');
@@ -18,6 +21,11 @@ function logDebug($message) {
     global $log_file;
     @file_put_contents($log_file, date('[Y-m-d H:i:s] ') . $message . PHP_EOL, FILE_APPEND);
 }
+
+// base URL for QR and invoice
+$domain = $_SERVER['HTTP_HOST'];
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? "https" : "http";
+$base_url = $protocol . "://" . $domain;
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -44,7 +52,8 @@ try {
         'payment_cost_1' => 0.00,
         'payment_cost_2' => 0.00,
         'reference' => '',
-        'method' => 'unknown'
+        'method' => 'unknown',
+        'bill_type' => 'print'
     ], $payment);
 
     $conn->begin_transaction();
@@ -77,10 +86,6 @@ try {
     $stmt->close();
 
     foreach ($cart_items as $item) {
-        if (!isset($item['type'], $item['id'], $item['item_name'], $item['quantity'], $item['price'])) {
-            throw new Exception("Cart item missing key values.");
-        }
-
         $item['serial_number'] = $item['serial_number'] ?? '';
         $item['warranty'] = $item['warranty'] ?? '';
         $item['discount'] = $item['discount'] ?? 0.00;
@@ -88,7 +93,6 @@ try {
         $item['profit'] = $item['profit'] ?? 0.00;
 
         if ($item['type'] === 'accessory') {
-            // Get the latest buying price for this accessory
             $buying_price = 0.00;
             $bp_stmt = $conn->prepare("SELECT buying FROM accessories_price WHERE accessory_id = ? ORDER BY id DESC LIMIT 1");
             $bp_stmt->bind_param("i", $item['id']);
@@ -121,7 +125,6 @@ try {
             $stmt->bind_param("ii", $item['quantity'], $item['id']);
             $stmt->execute();
             $stmt->close();
-
         } else {
             $stmt = $conn->prepare("INSERT INTO repair_revenue (repair_id, item_name, quantity, price) VALUES (?, ?, ?, ?)");
             $stmt->bind_param("isid", $repair_id, $item['item_name'], $item['quantity'], $item['price']);
@@ -132,21 +135,40 @@ try {
 
     $conn->commit();
 
-    if (!empty($customer['mobile_number'])) {
-        sendSms($customer['mobile_number'], "Your repair invoice has been paid. Thank you!");
-    }
-    if (!empty($customer['email'])) {
-        sendEmail($customer['email'], "Repair Invoice Paid", "Your repair invoice has been paid. Thank you!");
+    $response = ['success' => 'Payment processed successfully.'];
+
+    if ($payment['bill_type'] === 'print') {
+        $response['redirect'] = "assets/php/helper/payment-helper/generate_pdf.php?sale_id=$sale_id";
     }
 
-    echo json_encode(['success' => true, 'message' => 'Payment processed successfully.']);
+    if ($payment['bill_type'] === 'sms' && !empty($customer['mobile_number'])) {
+        $message = "Repair invoice paid. View: {$base_url}/view_invoice.php?sale_id=$sale_id";
+        $result = sendSms($customer['mobile_number'], $message);
+        if (strpos($result['error'] ?? '', 'OK:1') !== false) {
+            $response['sms_success'] = 'SMS sent successfully.';
+        } else {
+            $response['sms_error'] = $result['error'] ?? 'Failed to send SMS.';
+        }
+    }
+
+    if ($payment['bill_type'] === 'email' && !empty($customer['email'])) {
+        $subject = "Your Repair Invoice - #$sale_id";
+        $body = "<p>Thank you for your payment.</p><p>Download PDF: <a href='{$base_url}/assets/php/helper/payment-helper/generate_pdf.php?sale_id=$sale_id'>Download Invoice</a></p>";
+        $email_status = sendEmail($customer['email'], $subject, $body);
+        if ($email_status) {
+            $response['email_success'] = 'Email sent successfully.';
+        } else {
+            $response['email_error'] = 'Failed to send email.';
+        }
+    }
+
+    echo json_encode($response);
 
 } catch (Throwable $e) {
     if ($conn && $conn->errno) {
         $conn->rollback();
     }
 
-    error_log("❌ Payment error: " . $e->getMessage());
     logDebug("❌ " . $e->getMessage() . " | FILE: " . $e->getFile() . " | LINE: " . $e->getLine());
 
     http_response_code(500);

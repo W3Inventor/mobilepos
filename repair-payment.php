@@ -453,7 +453,7 @@ if ($result->num_rows > 0) {
     <script src="assets/vendors/js/select2.min.js"></script>
     <script src="assets/vendors/js/select2-active.min.js"></script>
     <script src="assets/js/common-init.min.js"></script>
-    <script src="assets/js/settings-init.min.js"></script>>
+    <script src="assets/js/settings-init.min.js"></script>
     <!--! END: Apps Init !-->
     <!--! BEGIN: Theme Customizer  !-->
     <script src="assets/js/theme-customizer-init.min.js"></script>
@@ -507,6 +507,7 @@ if ($result->num_rows > 0) {
 
 
             
+            const bill_type = $('input[name="bill_type"]:checked').val();
 
             $.ajax({
             url: 'assets/php/helper/payment-helper/submit_repair_payment.php',
@@ -516,83 +517,48 @@ if ($result->num_rows > 0) {
                 repair_id: <?php echo $repair_id; ?>,
                 customer: customer,
                 payment: payment,
-                cart_items: cart_items
+                cart_items: cart_items,
+                bill_type: bill_type
             }),
             success: function(response) {
                 // Print invoice PDF if redirect link is provided
                 if (response.redirect) {
-                    var printWindow = window.open(response.redirect, '_blank', 'width=526,height=600,scrollbars=no,toolbar=no');
+                    // Open the PDF invoice in a new window for printing
+                    const printWindow = window.open(response.redirect, '_blank', 
+                        'width=526,height=600,scrollbars=no,toolbar=no,location=no,status=no,menubar=no');
                     printWindow.onload = function () {
-                        printWindow.print();
-                        clearFormAndCart();
+                        printWindow.print();      // Open print dialog for the PDF
+                        clearFormAndCart();       // Clear the form and cart after printing
                     };
                 }
-                // Show success alert
-                if (response.success) {
-                    Swal.fire('Success', response.success, 'Print Invoice Success').then(clearFormAndCart);
-                }
-                // SMS notifications
+
+                // If an SMS was sent successfully
                 if (response.sms_success) {
-                    Swal.fire('SMS Sent', response.sms_success, 'SMS Sent').then(clearFormAndCart);
+                    Swal.fire('SMS Sent', response.sms_success, 'success').then(clearFormAndCart);
                 } else if (response.sms_error) {
                     Swal.fire('SMS Error', response.sms_error, 'warning').then(clearFormAndCart);
                 }
-                // Email notifications
+
+                // If an Email was sent successfully
                 if (response.email_success) {
-                    Swal.fire('Email Sent', response.email_success, 'Email Sent').then(clearFormAndCart);
+                    Swal.fire('Email Sent', response.email_success, 'success').then(clearFormAndCart);
                 } else if (response.email_error) {
                     Swal.fire('Email Error', response.email_error, 'warning').then(clearFormAndCart);
                 }
+
+                // If none of the above, but a generic success message is returned
+                if (response.success) {
+                    Swal.fire('Success', response.success, 'success').then(clearFormAndCart);
+                }
             },
-            error: function(xhr) {
+            error: function (xhr) {
+                // Handle unexpected errors
                 Swal.fire('Error', 'An unexpected error occurred: ' + xhr.responseText, 'error');
             }
+
         });
- 
-
-
-        $('#clearCustomerDetails').on('click', function () {
-            // Clear all input fields
-            $('#customerdetails input[type="text"], #customerdetails input[type="email"], #customerdetails input[type="tel"]').val('');
-
-            // Hide any error messages
-            $('#nic-error').hide();
-        });
-
-
-
-        $('#nic, #email, #mobile_number').on('input', function () {
-            const nic = $('#nic').val();
-            const email = $('#email').val();
-            const mobile = $('#mobile_number').val();
-
-            if (nic || email || mobile) {
-                // Make an AJAX call to fetch customer details
-                $.ajax({
-                    url: 'assets/php/helper/payment-helper/customer-fetch.php',
-                    method: 'POST',
-                    data: { nic: nic, email: email, mobile: mobile },
-                    dataType: 'json',
-                    success: function (data) {
-                        if (data.success) {
-                            // Autofill customer details if found
-                            $('#nic').val(data.customer.nic);
-                            $('#full_name').val(data.customer.full_name);
-                            $('#mobile_number').val(data.customer.mobile_number);
-                            $('#email').val(data.customer.email);
-                            $('#address').val(data.customer.address);
-                        }
-                    },
-                    error: function (xhr, status, error) {
-                        console.error('AJAX Error:', error);
-                    }
-                });
-            }
-        });
+        
     });
-
-
-
 
         // Prevent the default form submission when hitting Enter in the search input
         $('#search').on('keydown', function (event) {
@@ -684,23 +650,6 @@ if ($result->num_rows > 0) {
             initialCountry: "auto",
             utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
             separateDialCode: true
-        });
-
-        // NIC validation
-        document.getElementById('nic').addEventListener('input', function () {
-            var nicInput = this.value;
-            var nicError = document.getElementById('nic-error');
-
-            // Regular expression for validating NIC: 12 digits or 9 digits followed by 'V' or 'X'
-            var nicPattern = /^(?:\d{9}[VvXx]|\d{12})$/;
-
-            if (nicPattern.test(nicInput)) {
-                nicError.style.display = 'none';
-                this.setCustomValidity('');  // Clear any previous validation message
-            } else {
-                nicError.style.display = 'block';
-                this.setCustomValidity('Invalid NIC number');  // Show a custom validation message
-            }
         });
 
         // Payment methods initialization
@@ -799,69 +748,6 @@ if ($result->num_rows > 0) {
             }
         }
     
-        // Event listener for payment method change
-        $('#payment_method').on('change', updatePaymentFields);
-
-        // Event listener for cash payment input change
-        $('#cash_payment').on('input', calculatePayableAmount);
-
-        // Initialize payment fields visibility and calculations on page load
-        updatePaymentFields();
-       
-
-        // Handle form submission for payment
-        $('#paymentdetails').on('submit', function (e) {
-            e.preventDefault();
-
-            var formData = new FormData();
-
-            // Collect Customer Details
-            formData.append('nic', $('#nic').val());
-            formData.append('full_name', $('#full_name').val());
-            formData.append('mobile_number', iti.getNumber());
-            formData.append('email', $('#email').val());
-            var emailValue = $('#email').val();
-            formData.append('email', emailValue);
-            console.log('Email address:', emailValue); 
-            formData.append('address', $('#address').val());
-
-            // Collect Payment Details
-            formData.append('bill_amount', $('#bill_amount').val());
-            formData.append('total_discount', $('#total_discount').val());
-            formData.append('payable_amount', $('#payable_amount').val());
-            formData.append('payment_method', $('#payment_method').val());
-            formData.append('cash_payment', $('#cash_payment').val() || 0);
-            formData.append('card_payment', $('#card_payment').val() || 0);
-            formData.append('payment_cost_1', $('#paymentwithcost1').text().replace('Cash Payable: LKR ', '') || 0);
-            formData.append('payment_cost_2', $('#paymentwithcost2').text().replace('Card Payable: LKR ', '') || 0);
-            formData.append('reference', $('#reference').val());
-
-            // Collect Bill Type
-            var billType = $('input[name="bill_type"]:checked').val();
-            formData.append('bill_type', billType);
-
-
-
-            // Collect Cart Items
-            var cartItems = [];
-            $('#proposalList tbody tr').each(function () {
-                var item = {
-                    id: $(this).data('id'),
-                    item_name: $(this).find('.item').text().trim(),
-                    price: parseFloat($(this).find('td:nth-child(4)').text().replace('LKR ', '')),
-                    discount: parseFloat($(this).find('td:nth-child(5)').text().replace('LKR ', '')) || 0,
-                    quantity: parseInt($(this).find('.quantity').text()),
-                    total: parseFloat($(this).find('.total').text().replace('LKR ', '')),
-                    warranty: $(this).find('td:nth-child(6)').text(),
-                    type: $(this).data('type') || 'accessory',
-                    imei: $(this).data('imei'),
-                    serial_number: $(this).data('serial_number')
-                };
-                cartItems.push(item);
-            });
-            formData.append('cart_items', JSON.stringify(cartItems));
-
-
         function clearFormAndCart() {
             // Clear form fields
             $('#paymentdetails').trigger("reset");
@@ -880,9 +766,17 @@ if ($result->num_rows > 0) {
             $('#paymentwithcost1').text("");
             $('#paymentwithcost2').text("");
         }
-    });
+        // Event listener for payment method change
+        $('#payment_method').on('change', updatePaymentFields);
+
+        // Event listener for cash payment input change
+        $('#cash_payment').on('input', calculatePayableAmount);
+
+        // Initialize payment fields visibility and calculations on page load
+        updatePaymentFields();
 
 </script>
 </body>
 
 </html>
+

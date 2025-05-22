@@ -877,8 +877,6 @@ $(document).ready(function () {
         var billType = $('input[name="bill_type"]:checked').val();
         formData.append('bill_type', billType);
 
-
-
         // Collect Cart Items
         var cartItems = [];
         $('#proposalList tbody tr').each(function () {

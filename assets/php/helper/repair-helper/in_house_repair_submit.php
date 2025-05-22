@@ -8,6 +8,28 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 header('Content-Type: application/json');
 
+function generateTrackingCode($conn, $length = 6) {
+    $characters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789';
+    do {
+        $code = '';
+        for ($i = 0; $i < $length; $i++) {
+            $code .= $characters[random_int(0, strlen($characters) - 1)];
+        }
+        $count = 0;
+
+        // Check uniqueness
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM in_house_repair WHERE tracking_code = ?");
+        $stmt->bind_param("s", $code);
+        $stmt->execute();
+        $stmt->bind_result($count);
+        $stmt->fetch();
+        $stmt->close();
+    } while ($count > 0);
+
+    return $code;
+}
+
+
 // Collect form data
 $nic           = $_POST['nic'] ?? '';
 $full_name     = $_POST['full_name'] ?? '';
@@ -53,17 +75,18 @@ try {
     }
 
     // Insert repair record
+    $tracking_code = generateTrackingCode($conn);
     $status = 'Submitted';
     $technician_id = null;
     $stmt = $conn->prepare(
         "INSERT INTO in_house_repair 
-         (imei, brand, model, reason, images, estimate_price, technician_id, status, customer_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+         (imei, brand, model, reason, images, estimate_price, technician_id, status, customer_id, tracking_code)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
-    $stmt->bind_param("sssssdsis", 
+    $stmt->bind_param("sssssdisss", 
         $imei, $brand, $phone_model, $reason, 
         $images_column, $estimate_price, 
-        $technician_id, $status, $customer_id
+        $technician_id, $status, $customer_id, $tracking_code
     );
     if (!$stmt->execute()) {
         throw new Exception("Failed to insert repair: " . $stmt->error);
@@ -86,7 +109,7 @@ try {
     $domain   = $_SERVER['HTTP_HOST'];
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') ? "https" : "http";
     $base_url = "$protocol://$domain";
-    $tracking_url = "$base_url/track-repair.php?id=$repair_id";
+    $tracking_url = "$base_url/track-repair.php?code=$tracking_code";
 
     // Print: return redirect for frontend to open PDF
     if ($bill_type === 'print') {

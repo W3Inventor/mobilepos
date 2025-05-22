@@ -4,9 +4,7 @@ include 'config/dbconnect.php';
 
 <!DOCTYPE html>
 
-<html lang="zxx">
-
-```
+<html lang="en">
 <style>
    .form-control{
             padding: .375rem .75rem !important;
@@ -169,7 +167,7 @@ include 'config/dbconnect.php';
                             <div class="card stretch stretch-full">
                                 <div class="card-body custom-card-action p-0">
                                     <div class="table-responsive">
-                                        <table class="table table-hover mb-0" id="proposalList">
+                                        <table class="table table-hover mb-0">
                                             <thead>
                                                 <tr>
                                                     <th>Repiair ID</th>
@@ -197,7 +195,7 @@ include 'config/dbconnect.php';
                                                     $status = $row['status'] ?? 'Submitted';
                                                 ?>
                                                 <tr data-repair-id="<?= $row['ir_id'] ?>" data-invoice-id="<?= $row['invoice_id'] ?>" data-customer-id="<?= $row['customer_id'] ?>">
-                                                    <td>#<?= htmlspecialchars($row['ir_id']) ?></td>
+                                                    <td><?= htmlspecialchars($row['ir_id']) ?></td>
                                                     <td><?= htmlspecialchars($row['full_name']) ?></td>
                                                     <td><?= htmlspecialchars($row['imei']) ?></td>
                                                     <td><?= htmlspecialchars($row['brand']) ?></td>
@@ -219,9 +217,10 @@ include 'config/dbconnect.php';
                                                             $statuses = ['Submitted', 'Processing', 'Fixed', 'Ready to Pickup', 'Paid & Pickup'];
                                                             foreach ($statuses as $s):
                                                                 $selected = ($s === $status) ? 'selected' : '';
-                                                                echo "<option value='$s' $selected>$s</option>";
+                                                                $disabled = ($s === 'Paid & Pickup' && $status !== 'Paid & Pickup') ? 'disabled' : '';
+                                                                echo "<option value='$s' $selected $disabled>$s</option>";
                                                             endforeach;
-                                                            ?>
+                                                             ?>
                                                         </select>
                                                     </td>
                                                     <td class="text-end">
@@ -325,6 +324,9 @@ include 'config/dbconnect.php';
                     select.val(original); // revert
                     Swal.fire('Invalid Change', 'Please follow the correct order of status updates.', 'error');
                 }
+
+               
+
             });
 
 

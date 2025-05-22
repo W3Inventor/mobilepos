@@ -1,24 +1,34 @@
 <?php
 include 'config/dbconnect.php';
 
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    die("<h2 style='color:red;'>No repair ID specified.</h2>");
+if (!isset($_GET['code'])) {
+die("<h2 style='color:red;'>No repair code provided.</h2>");
 }
-$repair_id = (int) $_GET['id'];
+$code = $_GET['code'];
+
+$stmt = $conn->prepare("SELECT r.ir_id, r.status, r.brand, r.model, r.imei, r.reason, r.estimate_price, c.full_name
+FROM in_house_repair r
+JOIN customers c ON r.customer_id = c.customer_id
+WHERE r.tracking_code = ?");
+$stmt->bind_param("s", $code);
 
 // Fetch repair + customer
-$repair_stmt = $conn->prepare("SELECT r.ir_id, r.status, r.brand, r.model, r.imei, r.reason, r.estimate_price, c.full_name
+$stmt = $conn->prepare("SELECT r.ir_id, r.status, r.brand, r.model, r.imei, r.reason, r.estimate_price, c.full_name
     FROM in_house_repair r
     JOIN customers c ON r.customer_id = c.customer_id
-    WHERE r.ir_id = ?");
-$repair_stmt->bind_param("i", $repair_id);
-$repair_stmt->execute();
-$repair_result = $repair_stmt->get_result()->fetch_assoc();
-$repair_stmt->close();
+    WHERE r.tracking_code = ?");
+$stmt->bind_param("s", $code);
+$stmt->execute();
+$result = $stmt->get_result();
+$repair_result = $result->fetch_assoc();
+$stmt->close();
 
 if (!$repair_result) {
-    die("<h2 style='color:red;'>No repair record found for ID $repair_id</h2>");
+    die("<h2 style='color:red;'>No repair record found for code: $code</h2>");
 }
+
+$repair_id = $repair_result['ir_id']; // 💡 Now set this for later use (status timeline)
+
 
 // Define ordered statuses
 $all_statuses = ['Submitted', 'Processing', 'Fixed', 'Ready to Pickup', 'Paid & Pickup'];

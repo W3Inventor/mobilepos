@@ -75,12 +75,22 @@ try {
 
         // 2b. If matched, update stock and serial number
         if ($accessory_id !== null) {
+            // Update accessories stock
             $stmt = $conn->prepare("UPDATE accessories SET quantity = quantity - ? WHERE accessory_id = ?");
             $stmt->bind_param("ii", $qty, $accessory_id);
             if (!$stmt->execute()) {
-                throw new Exception("Failed to update stock for accessory $accessory_id: " . $stmt->error);
+                throw new Exception("Failed to update stock in accessories: " . $stmt->error);
             }
             $stmt->close();
+
+            // Update accessories_price stock
+            $stmt = $conn->prepare("UPDATE accessories_price SET quantity = quantity - ? WHERE accessory_id = ?");
+            $stmt->bind_param("ii", $qty, $accessory_id);
+            if (!$stmt->execute()) {
+                throw new Exception("Failed to update stock in accessories_price: " . $stmt->error);
+            }
+            $stmt->close();
+
 
             if ($serial !== '') {
                 $stmt = $conn->prepare("UPDATE serial_numbers SET status = 'Out of Stock' WHERE serial_number = ?");

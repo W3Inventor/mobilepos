@@ -1,21 +1,5 @@
 <?php
 
-ob_start();
-
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-set_error_handler(function($errno, $errstr, $errfile, $errline) {
-    echo "<script>console.error('PHP Error: " . addslashes("$errstr in $errfile on line $errline") . "');</script>";
-    return false; // allow normal PHP error handler to run too
-});
-
-set_exception_handler(function($exception) {
-    echo "<script>console.error('PHP Exception: " . addslashes($exception->getMessage()) . "');</script>";
-});
-
-
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: auth-login.php");
@@ -36,19 +20,42 @@ $stmt->execute();
 $repair = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 ?>
-<!DOCTYPE html>
-<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>Repair POS Invoice</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="" />
+    <meta name="keyword" content="" />
+    <meta name="author" content="flexilecode" />
+    <!--! The above 6 meta tags *must* come first in the head; any other head content must come *after* these tags !-->
+    <!--! BEGIN: Apps Title-->
+    <title>Exxplan || Repair Pos</title>
+    <!--! END:  Apps Title-->
+    <!--! BEGIN: Favicon-->
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico" />
+    <!--! END: Favicon-->
+    <!--! BEGIN: Bootstrap CSS-->
+    <link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css" />
+    <!--! END: Bootstrap CSS-->
+    <!--! BEGIN: Vendors CSS-->
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/vendors.min.css" />
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/daterangepicker.min.css" />
+    <!--! END: Vendors CSS-->
+    <!--! BEGIN: Custom CSS-->
+    <link rel="stylesheet" type="text/css" href="assets/css/theme.min.css" />
+    <!--! END: Bootstrap CSS-->
+    <!--! BEGIN: Vendors CSS-->
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/dataTables.bs5.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/tagify.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/tagify-data.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/quill.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2-theme.min.css">
+    <link rel="stylesheet" type="text/css" href="assets/css/notification.css">
+    <!-- Lightbox2 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css" rel="stylesheet" />
 
-    <link rel="shortcut icon" type="image/x-icon" href="assets/images/favicon.ico">
-    <link rel="stylesheet" href="assets/css/bootstrap.min.css">
-    <link rel="stylesheet" href="assets/vendors/css/vendors.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/css/theme.min.css">
+
 
     <style>
         .table td input, .table td select {
@@ -82,6 +89,7 @@ $stmt->close();
         </div>
 
         <div class="main-content">
+            <div class="row">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
@@ -120,6 +128,7 @@ $stmt->close();
                 </div>
             </div>
         </div>
+    </div>
     </div>
 </main>
 

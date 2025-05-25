@@ -44,7 +44,7 @@
                                 </a>
                                 <ul class="nxl-submenu">
                                     
-                                    <li class="nxl-item"><a class="nxl-link" href="mobile.php?filter=all&condition=all">Check Stock</a></li>
+                                    <li class="nxl-item"><a class="nxl-link" href="mobile.php?filter=in_stock&condition=all">Check Stock</a></li>
                                     <li class="nxl-item"><a class="nxl-link" href="add-mobile.php">Add New Items</a></li>
                                 </ul>
                             </li>

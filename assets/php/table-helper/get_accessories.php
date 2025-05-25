@@ -19,7 +19,7 @@ $accessories = [];
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         // Split serial numbers into an array if they exist
-        $row['serial_numbers'] = $row['serial_numbers'] ? explode(',', $row['serial_numbers']) : [];
+        $row['serial_numbers'] = $row['serial_numbers'] ? json_decode($row['serial_numbers'], true) : [];
         $accessories[] = $row;
 
         // Log the fetched data for debugging

@@ -284,7 +284,7 @@ input[type=number] {
                 <div class="col-6">
                     <div class="mb-5">
                         <label>Other Variation</label>
-                        <input name="other" id='other' type="text" class="form-control" required>
+                        <input name="other" id='other' type="text" class="form-control">
                     </div>
                 </div>
             </div>

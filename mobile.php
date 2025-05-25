@@ -16,6 +16,8 @@ SELECT
     v1.trcsl, 
     mb.`condition`, 
     mb.status,
+    MIN(v2.selling) AS min_price,
+    MAX(v2.selling) AS max_price,
     COUNT(mb.imei) AS total_quantity, -- Correct IMEI count per combination
     ROUND(SUM(v2.selling) / NULLIF(COUNT(mb.imei), 0), 2) AS average_selling_price
 FROM 
@@ -212,25 +214,25 @@ p.fw-bold{
                                 <div class="dropdown-menu dropdown-menu-end">
                                     <div class="dropdown-item">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="instock" checked="checked">
+                                            <input type="checkbox" class="custom-control-input" id="instock">
                                             <label class="custom-control-label c-pointer" for="instock">In Stock</label>
                                         </div>
                                     </div>
                                     <div class="dropdown-item">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="soldout" checked="checked">
+                                            <input type="checkbox" class="custom-control-input" id="soldout">
                                             <label class="custom-control-label c-pointer" for="soldout">Sold Out</label>
                                         </div>
                                     </div>
                                     <div class="dropdown-item">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="newmobile" checked="checked">
+                                            <input type="checkbox" class="custom-control-input" id="newmobile">
                                             <label class="custom-control-label c-pointer" for="newmobile">New Mobile</label>
                                         </div>
                                     </div>
                                     <div class="dropdown-item">
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" id="usedmobile" checked="checked">
+                                            <input type="checkbox" class="custom-control-input" id="usedmobile">
                                             <label class="custom-control-label c-pointer" for="usedmobile">Used Mobile</label>
                                         </div>
                                     </div>
@@ -287,7 +289,7 @@ p.fw-bold{
                                                 <th>Quantity</th>
                                                 <th>Condition</th>
                                                 <th>TRCSL</th>
-                                                <th>Avarage Price</th>
+                                                <th>Price</th>
                                                 <th>Status</th>
                                                 <th class="text-end">Actions</th>
                                             </tr>
@@ -310,7 +312,11 @@ p.fw-bold{
                                             <?php if ($filter == 'soldout'): ?>
                                             <td class="fs-13">-</td>
                                             <?php else: ?>
-                                                <td class="fs-13"><?php echo htmlspecialchars($row['average_selling_price']); ?></td>
+                                                <?php $min = $row['min_price']; $max = $row['max_price']; 
+                                                    if ($min == $max) 
+                                                        { echo '<td class="fs-13">LKR ' . number_format($min) . '</td>'; } 
+                                                    else 
+                                                        { echo '<td class="fs-13">LKR ' . number_format($min) . ' - LKR ' . number_format($max) . '</td>'; } ?>
                                                 <?php endif; ?>
                                             <td>
                                                 <?php 

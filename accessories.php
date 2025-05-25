@@ -77,10 +77,8 @@ $result = $conn->query($query);
                                             <th>Code</th>
                                             <th>Brand</th>
                                             <th>Name</th>
-                                            <th>Buying Price</th>
-                                            <th>Selling Price</th>
+                                            <th>Price</th>
                                             <th>Quantity</th>
-                                            <th>Serial Numbers</th>
                                             <th class="text-end">Actions</th>
                                         </tr>
                                     </thead>
@@ -97,23 +95,30 @@ $result = $conn->query($query);
     </main>
 
     <!-- Serial Numbers Table Modal -->
-<div class="modal fade" id="serialNumberModal" tabindex="-1" aria-labelledby="serialNumberModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="serialNumberModalLabel">Serial Numbers</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table id="serialNumbersTable" class="table table-hover">
-                        <!-- Ensure consistent classes and styles with main table -->
-                    </table>
-                </div>
-            </div>
+<!-- Bill Details Modal -->
+<div class="modal fade" id="billDetailsModal" tabindex="-1" aria-labelledby="billDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="billDetailsModalLabel">Bill Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Pagination controls -->
+        <nav>
+          <ul class="pagination" id="billPagination">
+            <!-- Pagination items will be dynamically added here -->
+          </ul>
+        </nav>
+        <!-- Bill details content -->
+        <div id="billDetailsContent">
+          <!-- Content will be dynamically loaded here -->
         </div>
+      </div>
     </div>
+  </div>
 </div>
+
 
 
 
@@ -148,49 +153,47 @@ $(document).ready(function () {
             { data: 'brand' },
             { data: 'accessory_name' },
             {
-                data: 'buying_price',
-                render: $.fn.dataTable.render.number(',', '.', 2, 'LKR ')
-            },
-            {
                 data: 'selling_price',
-                render: $.fn.dataTable.render.number(',', '.', 2, 'LKR ')
+                  render: $.fn.dataTable.render.number(',', '.', 2, 'LKR ')
             },
             { data: 'quantity' },
-            {
-                data: 'serial_numbers',
-                render: function (data, type, row) {
-                    if (data && data.length > 0) {
-                        return `
-                            <div class='hstack gap-2'>
-                                <a href="#" class='avatar-text avatar-md view-serials' 
-                                   data-serials='${JSON.stringify(data).replace(/"/g, '&quot;')}' 
-                                   data-accessory-id='${row.accessory_id}' 
-                                   data-price-id='${row.price_id}'>
-                                    <i class='feather-eye'></i>
-                                </a>
-                            </div>`;
-                    } else {
-                        return 'N/A';
-                    }
-                }
-            },
             {
                 data: null,
                 className: 'text-end',
                 render: function (data, type, row) {
-                    return `
-                            <div class='hstack gap-2 justify-content-end'>
-                                <a href="#" class="edit-row avatar-text avatar-md" data-accessory-id="${row.accessory_id}" data-price-id="${row.price_id}">
-                                    <i class='feather-edit'></i>
-                                </a>
-                                <a href="#" class="delete-row avatar-text avatar-md" data-accessory-id="${row.accessory_id}" data-price-id="${row.price_id}">
-                                    <i class='feather-trash-2'></i>
-                                </a>
-                            </div>`;
-                }
-            }
-        ]
-    });
+                const hasSerials = row.serial_numbers && row.serial_numbers.length > 0;
+
+                const eyeButton = `
+                    <a href="#" class="avatar-text avatar-md view-serials" 
+                    data-serials='${JSON.stringify(row.serial_numbers).replace(/"/g, '&quot;')}'
+                    data-accessory-id="${row.accessory_id}"
+                    data-price-id="${row.price_id}">
+                    <i class='feather-eye'></i>
+                    </a>`;
+
+                const editButton = `
+                    <a href="#" class="edit-row avatar-text avatar-md" 
+                    data-accessory-id="${row.accessory_id}" 
+                    data-price-id="${row.price_id}">
+                    <i class='feather-edit'></i>
+                    </a>`;
+
+                const deleteButton = `
+                    <a href="#" class="delete-row avatar-text avatar-md" 
+                    data-accessory-id="${row.accessory_id}" 
+                    data-price-id="${row.price_id}">
+                    <i class='feather-trash-2'></i>
+                    </a>`;
+
+                return `
+                    <div class='hstack gap-2 justify-content-end'>
+                    ${eyeButton}
+                    ${!hasSerials ? editButton + deleteButton : ''}
+                    </div>`;
+                        }
+                    }
+                ]
+            });
 
     let serialTable;
 
@@ -236,17 +239,34 @@ $(document).ready(function () {
                     data: null,
                     className: 'text-end',
                     render: function (data, type, row) {
+                        const hasSerials = row.serial_numbers && row.serial_numbers.length > 0;
+                        const eyeButton = `
+                        <a href="#" class="avatar-text avatar-md view-serials" 
+                            data-serials='${JSON.stringify(row.serial_numbers).replace(/"/g, '&quot;')}' 
+                            data-accessory-id='${row.accessory_id}' 
+                            data-price-id='${row.price_id}'>
+                            <i class='feather-eye'></i>
+                        </a>`;
+                        const editButton = `
+                        <a href="#" class="edit-row avatar-text avatar-md" 
+                            data-accessory-id="${row.accessory_id}" 
+                            data-price-id="${row.price_id}">
+                            <i class='feather-edit'></i>
+                        </a>`;
+                        const deleteButton = `
+                        <a href="#" class="delete-row avatar-text avatar-md" 
+                            data-accessory-id="${row.accessory_id}" 
+                            data-price-id="${row.price_id}">
+                            <i class='feather-trash-2'></i>
+                        </a>`;
                         return `
-                            <div class='hstack gap-2 justify-content-end'>
-                                <a href="#" class="avatar-text avatar-md edit-serial" title="Edit" data-serial-number="${row.serial_number}">
-                                    <i class='feather-edit'></i>
-                                </a>
-                                <a href="#" class="avatar-text avatar-md delete-serial" title="Delete" data-serial-number="${row.serial_number}">
-                                    <i class='feather-trash-2'></i>
-                                </a>
-                            </div>`;
+                        <div class='hstack gap-2 justify-content-end'>
+                            ${eyeButton}
+                            ${!hasSerials ? editButton + deleteButton : ''}
+                        </div>`;
                     }
-                }
+                    }
+
             ],
             dom: '<"top"lf>rt<"bottom"ip><"clear">',
             paging: true,
@@ -262,6 +282,37 @@ $(document).ready(function () {
             }
         });
     }
+
+    // Handle edit row button click
+    $('#accessoriesTable tbody').on('click', '.edit-row', function (e) {
+    e.preventDefault();
+    const row = $(this).closest('tr');
+    const accessory_id = $(this).data('accessory-id');
+    const price_id = $(this).data('price-id');
+
+    if (!accessory_id || !price_id) {
+        alert('Error: Accessory ID or Price ID is missing. Unable to update the record.');
+        console.log('Missing accessory_id or price_id:', { accessory_id, price_id });
+        return;
+    }
+
+    console.log('Captured for edit:', { accessory_id, price_id });
+
+    // Only make Quantity field editable
+    const quantityCell = row.find('td:eq(4)');
+    const quantityValue = quantityCell.text();
+    quantityCell.html(`<input type="number" class="form-control" value="${quantityValue}">`);
+
+    $(this).replaceWith(`
+        <a href="#" class="save-row avatar-text avatar-md" data-accessory-id="${accessory_id}" data-price-id="${price_id}">
+        <i class='feather-save'></i>
+        </a>
+        <a href="#" class="close-row avatar-text avatar-md">
+        <i class='feather-x'></i>
+        </a>
+    `);
+    });
+
 
     // Handle Edit Serial Number
     $('#serialNumbersTable').on('click', '.edit-serial', function (e) {
@@ -402,6 +453,167 @@ $(document).ready(function () {
             </a>
         `);
     });
+
+    // Handle view serial numbers button click
+$('#accessoriesTable tbody').on('click', '.view-serials', function () {
+  const serials = $(this).data('serials');
+  const accessoryId = $(this).data('accessory-id');
+  const priceId = $(this).data('price-id');
+
+  if (serials && serials.length > 0) {
+    // Group serials by bill ID (assuming each serial has a bill_id property)
+    const bills = groupSerialsByBill(serials);
+
+    // Initialize pagination
+    initializeBillPagination(bills);
+
+    // Show the first bill's details
+    displayBillDetails(bills[0]);
+
+    // Show the modal
+    $('#billDetailsModal').modal('show');
+  } else {
+    // No serial numbers; fetch and display bill details only
+    fetchBillDetails(accessoryId, priceId).then(billDetails => {
+      $('#billDetailsContent').html(renderBillDetails(billDetails));
+      $('#billPagination').empty(); // No pagination needed
+      $('#billDetailsModal').modal('show');
+    });
+  }
+});
+
+// Function to group serials by bill ID
+function groupSerialsByBill(serials) {
+  const billsMap = {};
+  serials.forEach(serial => {
+    const billId = serial.bill_id;
+    if (!billsMap[billId]) {
+      billsMap[billId] = [];
+    }
+    billsMap[billId].push(serial);
+  });
+  return Object.entries(billsMap).map(([billId, serials]) => ({ billId, serials }));
+}
+
+// Function to initialize pagination
+function initializeBillPagination(bills) {
+  const pagination = $('#billPagination');
+  pagination.empty();
+  bills.forEach((bill, index) => {
+    const pageItem = $(`
+      <li class="page-item ${index === 0 ? 'active' : ''}">
+        <a class="page-link" href="#">${index + 1}</a>
+      </li>
+    `);
+    pageItem.on('click', function (e) {
+      e.preventDefault();
+      pagination.find('.page-item').removeClass('active');
+      $(this).addClass('active');
+      displayBillDetails(bill);
+    });
+    pagination.append(pageItem);
+  });
+}
+
+// Function to display bill details
+function displayBillDetails(bill) {
+  const content = renderBillDetails(bill);
+  $('#billDetailsContent').html(content);
+}
+
+// Function to render bill details
+function renderBillDetails(response) {
+  if (!response || response.status !== 'success' || !response.data) {
+    return '<p class="text-danger">Failed to load bill details.</p>';
+  }
+
+  const bill = response.data;
+  let html = '';
+
+  html += `
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <label class="form-label">Bill Number</label>
+        <div>${bill.billno || 'N/A'}</div>
+      </div>
+      <div class="col-md-6 text-end">
+        <label class="form-label">Date</label>
+        <div>${bill.date || 'N/A'}</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Amount</label>
+        <div>LKR ${bill.bill_amount || '0.00'}</div>
+      </div>
+      <div class="col-md-6 text-end">
+       <label class="form-label">Supplier</label>
+        <div>${bill.supplier_name || 'Unknown'}</div>
+      </div>
+    </div>
+  `;
+
+  html += `
+    <h6 class="fw-bold mb-3">Serial Numbers</h6>
+    <table class="table table-bordered">
+      <thead class="table-light">
+        <tr>
+          <th>Serial Number</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  if (Array.isArray(bill.serials) && bill.serials.length > 0) {
+    bill.serials.forEach(serial => {
+      html += `
+        <tr>
+          <td>${serial.serial_number}</td>
+          <td>${serial.status}</td>
+          <td class="text-end">
+            <a href="#" class="btn btn-sm btn-outline-primary edit-serial" data-serial-number="${serial.serial_number}"><i class="feather-edit"></i></a>
+            <a href="#" class="btn btn-sm btn-outline-danger delete-serial" data-serial-number="${serial.serial_number}"><i class="feather-trash-2"></i></a>
+          </td>
+        </tr>
+      `;
+    });
+  } else {
+    html += `
+      <tr>
+        <td colspan="3" class="text-center">No serial numbers available for this bill.</td>
+      </tr>
+    `;
+  }
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  return html;
+}
+
+
+// In the success function of fetchBillDetails()
+fetchBillDetails(accessoryId, priceId).then(response => {
+  $('#billDetailsContent').html(renderBillDetails(response));
+  $('#billPagination').empty();
+  $('#billDetailsModal').modal('show');
+});
+
+
+
+
+// Function to fetch bill details when no serial numbers are present
+function fetchBillDetails(accessoryId, priceId) {
+  return $.ajax({
+    url: 'assets/php/table-helper/get_bill_details.php',
+    type: 'GET',
+    data: { accessory_id: accessoryId, price_id: priceId },
+    dataType: 'json'
+  });
+}
+
 
     // Handle save row button click
     $('#accessoriesTable tbody').on('click', '.save-row', function (e) {

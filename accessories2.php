@@ -118,8 +118,10 @@ $result = $conn->query($query);
 
 
     <script src="assets/vendors/js/vendors.min.js"></script>
+    <script src="assets/js/setting-pw.js"></script>
     <script src="assets/js/common-init.min.js"></script>
     <script src="assets/vendors/js/vendors.min.js"></script>
+    <script src="assets/js/setting-pw.js"></script>
     <script src="assets/vendors/js/circle-progress.min.js"></script>
     <script src="assets/vendors/js/dataTables.min.js"></script>
     <script src="assets/vendors/js/dataTables.bs5.min.js"></script>
@@ -133,6 +135,7 @@ $result = $conn->query($query);
     <script src="assets/js/theme-customizer-init.min.js"></script>
     <script src="assets/js/notification.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+   
 
     <script>
 

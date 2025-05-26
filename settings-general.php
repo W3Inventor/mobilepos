@@ -184,6 +184,7 @@
     </main>
    
     <script src="assets/vendors/js/vendors.min.js"></script>
+    <script src="assets/js/setting-pw.js"></script>
 
     <script src="assets/js/common-init.min.js"></script>
     <script src="assets/js/settings-init.min.js"></script>

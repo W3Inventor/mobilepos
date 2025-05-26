@@ -333,6 +333,7 @@ input[type=number] {
     <!--! [End] Main Content !-->
     
     <script src="assets/vendors/js/vendors.min.js"></script>
+    <script src="assets/js/setting-pw.js"></script>
     <script src="assets/vendors/js/select2.min.js"></script>
     <script src="assets/vendors/js/select2-active.min.js"></script>
     <script src="assets/js/common-init.min.js"></script>

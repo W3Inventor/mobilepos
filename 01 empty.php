@@ -196,6 +196,7 @@ include 'config/adminacc.php';
     <!--! ================================================================ !-->
     <!--! BEGIN: Vendors JS !-->
     <script src="assets/vendors/js/vendors.min.js"></script>
+    <script src="assets/js/setting-pw.js"></script>
     <!-- vendors.min.js {always must need to be top} -->
     <!--! END: Vendors JS !-->
     <!--! BEGIN: Apps Init  !-->

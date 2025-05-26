@@ -21,18 +21,6 @@
                     </li>
                     <li class="nxl-item nxl-hasmenu">
                         <a href="javascript:void(0);" class="nxl-link">
-                            <span class="nxl-micon"><i class="feather-cast"></i></span>
-                            <span class="nxl-mtext">Reports</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
-                        </a>
-                        <ul class="nxl-submenu">
-                            <li class="nxl-item"><a class="nxl-link" href="reports-sales.html">Sales Report</a></li>
-                            <li class="nxl-item"><a class="nxl-link" href="reports-leads.html">Leads Report</a></li>
-                            <li class="nxl-item"><a class="nxl-link" href="reports-project.html">Project Report</a></li>
-                            <li class="nxl-item"><a class="nxl-link" href="reports-timesheets.html">Timesheets Report</a></li>
-                        </ul>
-                    </li>
-                    <li class="nxl-item nxl-hasmenu">
-                        <a href="javascript:void(0);" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-package"></i></span>
                             <span class="nxl-mtext">Inventory</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
                         </a>
@@ -57,37 +45,8 @@
                                     
                                     <li class="nxl-item"><a class="nxl-link" href="accessories.php">Check Stock</a></li>
                                     <li class="nxl-item"><a class="nxl-link" href="add-accessories.php">Add New Accessories</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="accessories.php">Update Stock</a></li>
                                 </ul>
-                            </li>
-                            <li class="nxl-item nxl-hasmenu">
-                                <a href="javascript:void(0);" class="nxl-link">
-                                <!-- <span class="nxl-micon"><i class="feather-smartphone"></i></span> -->
-                                    <span class="nxl-mtext">SIM Cards</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
-                                </a>
-                                <ul class="nxl-submenu">
-                                    
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Check Stock</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Add New SIMs</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Selling Update</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Service Providers</a></li>
-                                </ul>
-                            </li>
-                            <li class="nxl-item nxl-hasmenu">
-                                <a href="javascript:void(0);" class="nxl-link">
-                                <!-- <span class="nxl-micon"><i class="feather-smartphone"></i></span> -->
-                                    <span class="nxl-mtext">Reloads/Cards</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
-                                </a>
-                                <ul class="nxl-submenu">
-                                    
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Add Cards</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Add New Cards</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Reload Sales</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Service Providers</a></li>
-                                </ul>
-                            </li>
-                    
-                            
+                            </li>                     
                         </ul>
                     </li>
 
@@ -148,14 +107,24 @@
                             <li class="nxl-item"><a class="nxl-link" href="customers-view.html">Customers View</a></li>
                             <li class="nxl-item"><a class="nxl-link" href="customers-create.html">Customers Create</a></li>
                         </ul>
-                    </li>
-                   
+                    </li>                
                     <li class="nxl-item nxl-hasmenu">
-                        <a href="settings-general.php" class="nxl-link">
+                        <a href="javascript:void(0);" class="nxl-link protected-link" data-target-url="settings-general.php">
                             <span class="nxl-micon"><i class="feather-settings"></i></span>
                             <span class="nxl-mtext">Settings</span>
                         </a>
-                       
+                    </li>
+                    <li class="nxl-item nxl-hasmenu">
+                        <a href="javascript:void(0);" class="nxl-link">
+                            <span class="nxl-micon"><i class="feather-cast"></i></span>
+                            <span class="nxl-mtext">Reports</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
+                        </a>
+                        <ul class="nxl-submenu">
+                            <li class="nxl-item"><a class="nxl-link" href="reports-sales.html">Sales Report</a></li>
+                            <li class="nxl-item"><a class="nxl-link" href="reports-leads.html">Leads Report</a></li>
+                            <li class="nxl-item"><a class="nxl-link" href="reports-project.html">Project Report</a></li>
+                            <li class="nxl-item"><a class="nxl-link" href="reports-timesheets.html">Timesheets Report</a></li>
+                        </ul>
                     </li>
                     <li class="nxl-item nxl-hasmenu">
                         <a href="javascript:void(0);" class="nxl-link">
@@ -248,3 +217,5 @@
             </div>
         </div>
     </nav>
+
+

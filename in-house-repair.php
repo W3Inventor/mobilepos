@@ -270,6 +270,7 @@ include 'config/dbconnect.php';
     </div>
     <!--! Footer Script !-->
     <script src="assets/vendors/js/vendors.min.js"></script>
+    <script src="assets/js/setting-pw.js"></script>
     <script src="assets/vendors/js/circle-progress.min.js"></script>
     <script src="assets/vendors/js/dataTables.min.js"></script>
     <script src="assets/vendors/js/dataTables.bs5.min.js"></script>

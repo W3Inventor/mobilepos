@@ -1,4 +1,9 @@
 <?php
+include 'config/adminacc.php';
+
+?>
+
+<?php
 include 'config/dbconnect.php';
 ?>
 

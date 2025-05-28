@@ -49,41 +49,14 @@
                             </li>                     
                         </ul>
                     </li>
-
-
                     <li class="nxl-item nxl-hasmenu">
                         <a href="javascript:void(0);" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-tool"></i></span>
                             <span class="nxl-mtext">Reparing</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
                         </a>
                         <ul class="nxl-submenu">
-                            <li class="nxl-item nxl-hasmenu">
-                                <a href="javascript:void(0);" class="nxl-link">
-                                <!-- <span class="nxl-micon"><i class="feather-smartphone"></i></span> -->
-                                    <span class="nxl-mtext">Company Repair</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
-                                </a>
-                                <ul class="nxl-submenu">
-                                    
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Submit</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Pending to Sent</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Processing</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Received</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Completed</a></li>
-                                </ul>
-                            </li>
-                            <li class="nxl-item nxl-hasmenu">
-                                <a href="javascript:void(0);" class="nxl-link">
-                                <!-- <span class="nxl-micon"><i class="feather-smartphone"></i></span> -->
-                                    <span class="nxl-mtext">In-House Repair</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
-                                </a>
-                                <ul class="nxl-submenu">
-                                    
-                                    <li class="nxl-item"><a class="nxl-link" href="in-house-repair-submit.php">Submit</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="in-house-repair.php">Processing</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Fixed</a></li>
-                                    <li class="nxl-item"><a class="nxl-link" href="#">Paid</a></li>
-                                </ul>
-                            </li>   
+                            <li class="nxl-item"><a class="nxl-link" href="in-house-repair-submit.php">Submit</a></li>
+                            <li class="nxl-item"><a class="nxl-link" href="in-house-repair.php">Processing</a></li>
                         </ul>
                     </li> 
                     <li class="nxl-item nxl-hasmenu">

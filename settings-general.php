@@ -1,3 +1,7 @@
+<?php
+include 'config/adminacc.php';
+
+?>
 <!DOCTYPE html>
 <html lang="zxx">
 

@@ -119,7 +119,29 @@ p.fw-bold{
     display: none;
 }
 
+/* .dataTables_wrapper .row:first-child{
+    border-bottom: 0 !important;
+} */
 
+.dataTables_wrapper .row:last-child{
+    border-top: 0 !important;
+}
+
+div#proposalList2_length{
+    display: none !important;
+}
+
+input.form-control.form-control-sm{
+    padding: 0 10px !important;
+}
+
+.modal-body .col-sm-12.col-md-5 {
+    visibility: hidden !important;
+}
+
+.modal-body a.page-link {
+    font-size: 12px !important;
+}
 </style>
 
 <head>
@@ -406,8 +428,6 @@ p.fw-bold{
     <script src="assets/vendors/js/vendors.min.js"></script>
     <script src="assets/js/setting-pw.js"></script>
     <script src="assets/vendors/js/circle-progress.min.js"></script>
-    <script src="assets/vendors/js/dataTables.min.js"></script>
-    <script src="assets/vendors/js/dataTables.bs5.min.js"></script>
     <script src="assets/vendors/js/tagify.min.js"></script>
     <script src="assets/vendors/js/tagify-data.min.js"></script>
     <script src="assets/vendors/js/quill.min.js"></script>
@@ -417,15 +437,138 @@ p.fw-bold{
     <script src="assets/js/proposal-init.min.js"></script>
     <script src="assets/js/theme-customizer-init.min.js"></script>
     <script src="assets/js/notification.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="assets/vendors/js/dataTables.min.js"></script>
+    <script src="assets/vendors/js/dataTables.bs5.min.js"></script>
+
 
 
 
 
     <script>
+
+
+
+
 $(document).ready(function () {
+    
     let currentBillIndex = 0;
     let billsData = [];
+
+    // ✅ 1. Add this function to your JS code, preferably near the top
+    function confirmAdminPassword() {
+        return new Promise((resolve, reject) => {
+            $('#billDetailsModal').modal('hide'); // Hide modal first
+
+            Swal.fire({
+                title: 'Enter Admin Password',
+                input: 'password',
+                inputLabel: 'Password',
+                inputPlaceholder: 'Enter admin password',
+                inputAttributes: { autocapitalize: 'off', autocorrect: 'off' },
+                showCancelButton: true,
+                confirmButtonText: 'Confirm',
+                showLoaderOnConfirm: true,
+                preConfirm: (password) => {
+                    if (!password) {
+                        Swal.showValidationMessage('Password is required');
+                        return;
+                    }
+                    return fetch('assets/php/table-helper/verify_admin_password.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `admin_password=${encodeURIComponent(password)}`
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res.status !== 'success') {
+                            throw new Error(res.message || 'Invalid password');
+                        }
+                        return true;
+                    })
+                    .catch(err => Swal.showValidationMessage(err.message));
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then(result => {
+                if (result.isConfirmed) {
+                    $('#billDetailsModal').modal('show'); // Reopen modal
+                    resolve(true);
+                } else {
+                    $('#billDetailsModal').modal('show');
+                    reject(false);
+                }
+            });
+        });
+    }
+
+    // ✅ 2. Secure Selling Price Edit
+    $(document).on('click', '#sellingPriceEdit', function () {
+confirmAdminPassword().then(() => {
+$('#sellingPriceText').hide();
+$('#sellingPriceInput').show().focus();
+$('#sellingPriceEdit').hide();
+$('#sellingPriceSave, #sellingPriceCancel').show();
+});
+});
+
+
+
+    // ✅ 3. Secure IMEI Edit using jQuery
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('.edit-imei')) {
+            e.preventDefault();
+            const row = e.target.closest('tr');
+            confirmAdminPassword().then(() => {
+                $(row).find('.imei-text').hide();
+                $(row).find('.imei-input').removeClass('d-none').focus();
+                $(row).find('.edit-imei').hide();
+                $(row).find('.save-imei, .cancel-edit').removeClass('d-none');
+            });
+        }
+    });
+
+    // ✅ 4. Secure IMEI Delete using jQuery
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('.delete-imei')) {
+            e.preventDefault();
+            const row = e.target.closest('tr');
+            const imeiIndex = $(row).data('index');
+            const imei = billsData[currentBillIndex].imeis[imeiIndex].imei_number;
+
+            confirmAdminPassword().then(() => {
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: 'This will delete the IMEI.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, delete it!',
+                    cancelButtonText: 'Cancel'
+                }).then(result => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: 'assets/php/helper/mobile-helper/delete_imei.php',
+                            type: 'POST',
+                            data: { imei },
+                            success: function (response) {
+                                response = JSON.parse(response);
+                                if (response.success) {
+                                    showNotification('success', 'IMEI deleted.');
+                                    $(row).remove();
+                                    billsData[currentBillIndex].imeis.splice(imeiIndex, 1);
+                                } else {
+                                    Swal.fire('Error!', 'Delete failed.', 'error');
+                                }
+                            },
+                            error: function () {
+                                Swal.fire('Error!', 'AJAX error.', 'error');
+                            }
+                        });
+                    }
+                });
+            });
+        }
+    });
 
     // Function to display bill details in the modal
     function displayBillDetails(index) {
@@ -469,7 +612,7 @@ $(document).ready(function () {
                     <p class="mb-0">${bill.quantity2}</p>
                 </div>
             </div>
-            <table class="table table-bordered mt-3">
+            <table class="table table-bordered mt-3" id="proposalList2">
                 <thead class="table-light">
                     <tr>
                         <th class="text-start">IMEI Number</th>
@@ -511,6 +654,36 @@ $(document).ready(function () {
 
         bindIMEIActionEvents();
         bindEditEvents();
+
+
+        // Initialize DataTable on proposalList2
+        setTimeout(() => {
+            if ($.fn.DataTable.isDataTable('#proposalList2')) {
+                $('#proposalList2').DataTable().destroy();
+            }
+
+            $('#proposalList2').DataTable({
+                paging: true,
+                searching: true,
+                ordering: true,
+                responsive: true,
+                pageLength: 10, // or your desired number of rows per page
+                drawCallback: function (settings) {
+                    const api = this.api();
+                    const pagination = $(this)
+                        .closest('.dataTables_wrapper')
+                        .find('.dataTables_paginate');
+
+                    // Show pagination only if more than one page
+                    if (api.page.info().pages <= 1) {
+                        pagination.hide();
+                    } else {
+                        pagination.show();
+                    }
+                }
+            });
+        }, 50);
+
     }
 
     function bindIMEIActionEvents() {
@@ -714,6 +887,34 @@ function resetRowActions(row) {
                 }
             });
         }
+
+         
+        if ($.fn.DataTable.isDataTable('#proposalList')) {
+            $('#proposalList').DataTable().destroy();
+        }
+
+            $('#proposalList').DataTable({
+                paging: true,
+                searching: true,
+                ordering: true,
+                responsive: true,
+                pageLength: 10,
+                drawCallback: function (settings) {
+                    const api = this.api();
+                    const pagination = $(this)
+                        .closest('.dataTables_wrapper')
+                        .find('.dataTables_paginate');
+
+                    if (api.page.info().pages <= 1) {
+                        pagination.hide();
+                    } else {
+                        pagination.show();
+                    }
+                }
+            });
+
+
+
 
         // Fetch data on click of the eye icon
         function bindModalEvents() {

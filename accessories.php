@@ -34,6 +34,33 @@ $result = $conn->query($query);
     <link rel="stylesheet" type="text/css" href="assets/vendors/css/select2-theme.min.css">
     <link rel="stylesheet" type="text/css" href="assets/css/notification.css">
 
+    <style>
+        /* .dataTables_wrapper .row:first-child{
+            border-bottom: 0 !important;
+        } */
+
+        .dataTables_wrapper .row:last-child{
+            border-top: 0 !important;
+        }
+
+        div#proposalList2_length{
+            display: none !important;
+        }
+
+        input.form-control.form-control-sm{
+            padding: 0 10px !important;
+        }
+
+        .modal-body .col-sm-12.col-md-5 {
+            visibility: hidden !important;
+        }
+
+        .modal-body a.page-link {
+            font-size: 12px !important;
+        }
+
+    </style>
+
 </head>
 
 
@@ -188,8 +215,8 @@ $result = $conn->query($query);
                         data: 'selling_price',
                         render: function (data) {
                             return typeof data === 'string' && data.includes('-')
-                            ? `LKR ${data}`
-                            : `LKR ${parseFloat(data).toFixed(2)}`;
+                                ? `LKR ${data}`
+                                : `LKR ${parseFloat(data).toFixed(2)}`;
                         }
                     },
                     { data: 'quantity' },
@@ -197,25 +224,43 @@ $result = $conn->query($query);
                         data: null,
                         className: 'text-end',
                         render: function (data, type, row) {
-                        const hasSerials = row.serial_numbers && row.serial_numbers.length > 0;
+                            const hasSerials = row.serial_numbers && row.serial_numbers.length > 0;
+                            const eyeButton = `
+                                <a href="#" class="avatar-text avatar-md view-serials" 
+                                data-serials='${JSON.stringify(row.serial_numbers).replace(/"/g, '&quot;')}'
+                                data-accessory-id="${row.accessory_id}"
+                                data-price-id="${row.price_id}">
+                                    <i class='feather-eye'></i>
+                                </a>`;
+                            return `
+                                <div class='hstack gap-2 justify-content-end'>
+                                    ${eyeButton}
+                                </div>`;
+                        }
+                    }
+                ],
+                pageLength: 10,
+                responsive: true,
+                drawCallback: function (settings) {
+                    const api = this.api();
+                    const pagination = $(this)
+                        .closest('.dataTables_wrapper')
+                        .find('.dataTables_paginate');
+                    const info = $(this)
+                        .closest('.dataTables_wrapper')
+                        .find('#accessoriesTable_info');
 
-                        const eyeButton = `
-                            <a href="#" class="avatar-text avatar-md view-serials" 
-                            data-serials='${JSON.stringify(row.serial_numbers).replace(/"/g, '&quot;')}'
-                            data-accessory-id="${row.accessory_id}"
-                            data-price-id="${row.price_id}">
-                            <i class='feather-eye'></i>
-                            </a>`;
+                    if (api.page.info().pages <= 1) {
+                        pagination.hide();
+                        info.hide();
+                    } else {
+                        pagination.show();
+                        info.show();
+                    }
+                }
 
-                    
-                        return `
-                            <div class='hstack gap-2 justify-content-end'>
-                            ${eyeButton}
-                            </div>`;
-                                }
-                            }
-                        ]
-                    });
+            });
+
 
             let serialTable;
 
@@ -301,32 +346,32 @@ $result = $conn->query($query);
 
             // Handle edit row button click
             $('#accessoriesTable tbody').on('click', '.edit-row', function (e) {
-            e.preventDefault();
-            const row = $(this).closest('tr');
-            const accessory_id = $(this).data('accessory-id');
-            const price_id = $(this).data('price-id');
+                e.preventDefault();
+                const row = $(this).closest('tr');
+                const accessory_id = $(this).data('accessory-id');
+                const price_id = $(this).data('price-id');
 
-            if (!accessory_id || !price_id) {
-                alert('Error: Accessory ID or Price ID is missing. Unable to update the record.');
-                console.log('Missing accessory_id or price_id:', { accessory_id, price_id });
-                return;
-            }
+                if (!accessory_id || !price_id) {
+                    alert('Error: Accessory ID or Price ID is missing. Unable to update the record.');
+                    console.log('Missing accessory_id or price_id:', { accessory_id, price_id });
+                    return;
+                }
 
-            console.log('Captured for edit:', { accessory_id, price_id });
+                console.log('Captured for edit:', { accessory_id, price_id });
 
-            // Only make Quantity field editable
-            const quantityCell = row.find('td:eq(4)');
-            const quantityValue = quantityCell.text();
-            quantityCell.html(`<input type="number" class="form-control" value="${quantityValue}">`);
+                // Only make Quantity field editable
+                const quantityCell = row.find('td:eq(4)');
+                const quantityValue = quantityCell.text();
+                quantityCell.html(`<input type="number" class="form-control" value="${quantityValue}">`);
 
-            $(this).replaceWith(`
-                <a href="#" class="save-row avatar-text avatar-md" data-accessory-id="${accessory_id}" data-price-id="${price_id}">
-                <i class='feather-save'></i>
-                </a>
-                <a href="#" class="close-row avatar-text avatar-md">
-                <i class='feather-x'></i>
-                </a>
-            `);
+                $(this).replaceWith(`
+                    <a href="#" class="save-row avatar-text avatar-md" data-accessory-id="${accessory_id}" data-price-id="${price_id}">
+                    <i class='feather-save'></i>
+                    </a>
+                    <a href="#" class="close-row avatar-text avatar-md">
+                    <i class='feather-x'></i>
+                    </a>
+                `);
             });
 
 
@@ -522,229 +567,258 @@ $result = $conn->query($query);
                     </div>
                 </div>
             `;
-    if (Array.isArray(bill.serials) && bill.serials.length > 0) {
-                bill.serials.forEach(serial => {
-            html += `
-                <h6 class="fw-bold mb-3">Serial Numbers</h6>
-                <table class="table table-bordered">
-                <thead class="table-light">
-                    <tr>
-                    <th>Serial Number</th>
-                    <th>Status</th>
-                    <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-            `;
-
-            
+        if (Array.isArray(bill.serials) && bill.serials.length > 0) {
+                    bill.serials.forEach(serial => {
                 html += `
-                    <tr>
-                        <td><span class="serial-number">${serial.serial_number}</span></td>
-                        <td>${serial.status}</td>
-                        <td class="text-end">
-                            <div class="hstack gap-2 justify-content-end">
-                                <a href="#" class="avatar-text avatar-md edit-serial-btn" data-serial-number="${serial.serial_number}">
-                                    <i class="feather-edit"></i>
-                                </a>
-                                <a href="#" class="avatar-text avatar-md delete-serial-btn" data-serial-number="${serial.serial_number}">
-                                    <i class="feather-trash-2"></i>
-                                </a>
-  
-                            </div>                     
-                        </td>
-                    </tr>
+                    <h6 class="fw-bold mb-3">Serial Numbers</h6>
+                    <table class="table table-bordered" id="proposalList2">
+                    <thead class="table-light">
+                        <tr>
+                        <th>Serial Number</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                 `;
-                });
-            }
+
+                
+                    html += `
+                        <tr>
+                            <td><span class="serial-number">${serial.serial_number}</span></td>
+                            <td>${serial.status}</td>
+                            <td class="text-end">
+                                <div class="hstack gap-2 justify-content-end">
+                                    <a href="#" class="avatar-text avatar-md edit-serial-btn" data-serial-number="${serial.serial_number}">
+                                        <i class="feather-edit"></i>
+                                    </a>
+                                    <a href="#" class="avatar-text avatar-md delete-serial-btn" data-serial-number="${serial.serial_number}">
+                                        <i class="feather-trash-2"></i>
+                                    </a>
+    
+                                </div>                     
+                            </td>
+                        </tr>
+                    `;
+                    });
+                }
 
 
-            html += `</tbody></table>`;
+                html += `</tbody></table>`;
 
-                setTimeout(() => {
-                    $('#editQuantity').on('click', () => {
-                        $('#billDetailsModal').modal('hide');
-                        Swal.fire({
-                        title: 'Enter Admin Password',
-                        input: 'password',
-                        inputLabel: 'Password',
-                        inputPlaceholder: 'Enter admin password',
-                        inputAttributes: { autocapitalize: 'off', autocorrect: 'off' },
-                        showCancelButton: true,
-                        confirmButtonText: 'Confirm',
-                        showLoaderOnConfirm: true,
-                        preConfirm: (password) => {
-                            if (!password) {
-                                Swal.showValidationMessage('Password is required');
+
+                    setTimeout(() => {
+                        if ($.fn.DataTable.isDataTable('#proposalList2')) {
+                                    $('#proposalList2').DataTable().destroy();
+                                }
+
+                                $('#proposalList2').DataTable({
+                                    paging: true,
+                                    searching: true,
+                                    ordering: true,
+                                    responsive: true,
+                                    pageLength: 10, // or your desired number of rows per page
+                                    drawCallback: function (settings) {
+                                        const api = this.api();
+                                        const pagination = $(this)
+                                            .closest('.dataTables_wrapper')
+                                            .find('.dataTables_paginate');
+
+                                        // Show pagination only if more than one page
+                                        if (api.page.info().pages <= 1) {
+                                            pagination.hide();
+                                        } else {
+                                            pagination.show();
+                                        }
+                                    }
+                                });
+                           
+                        $('#editQuantity').on('click', () => {
+                            $('#billDetailsModal').modal('hide');
+                            Swal.fire({
+                            title: 'Enter Admin Password',
+                            input: 'password',
+                            inputLabel: 'Password',
+                            inputPlaceholder: 'Enter admin password',
+                            inputAttributes: { autocapitalize: 'off', autocorrect: 'off' },
+                            showCancelButton: true,
+                            confirmButtonText: 'Confirm',
+                            showLoaderOnConfirm: true,
+                            preConfirm: (password) => {
+                                if (!password) {
+                                    Swal.showValidationMessage('Password is required');
+                                    return;
+                                }
+
+                                const formData = new URLSearchParams();
+                                formData.append('admin_password', password);
+
+                                return fetch('assets/php/table-helper/verify_admin_password.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded'
+                                    },
+                                    body: formData
+                                })
+                                .then(res => res.json())
+                                .then(res => {
+                                    if (res.status !== 'success') {
+                                        throw new Error(res.message || 'Invalid password');
+                                    }
+                                    return true;
+                                })
+                                .catch(err => Swal.showValidationMessage(err.message));
+                            },
+                            allowOutsideClick: () => !Swal.isLoading()
+                            }).then(result => {
+                            if (result.isConfirmed) {
+                                $('#billDetailsModal').modal('show');
+                                $('#quantityText').hide();
+                                $('#quantityInput').removeClass('d-none').focus();
+                                $('#editQuantity').hide();
+                                $('#saveQuantity, #cancelQuantity').removeClass('d-none');
+                            } else {
+                                $('#billDetailsModal').modal('show');
+                            }
+                            });
+                        });
+
+                        $('#editPrice').on('click', () => {
+                            $('#billDetailsModal').modal('hide');
+                            Swal.fire({
+                            title: 'Enter Admin Password',
+                            input: 'password',
+                            inputLabel: 'Password',
+                            inputPlaceholder: 'Enter admin password',
+                            inputAttributes: { autocapitalize: 'off', autocorrect: 'off' },
+                            showCancelButton: true,
+                            confirmButtonText: 'Confirm',
+                            showLoaderOnConfirm: true,
+                            preConfirm: (password) => {
+                                if (!password) {
+                                    Swal.showValidationMessage('Password is required');
+                                    return;
+                                }
+
+                                const formData = new URLSearchParams();
+                                formData.append('admin_password', password);
+
+                                return fetch('assets/php/table-helper/verify_admin_password.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded'
+                                    },
+                                    body: formData
+                                })
+                                .then(res => res.json())
+                                .then(res => {
+                                    if (res.status !== 'success') {
+                                        throw new Error(res.message || 'Invalid password');
+                                    }
+                                    return true;
+                                })
+                                .catch(err => Swal.showValidationMessage(err.message));
+                            },
+                            allowOutsideClick: () => !Swal.isLoading()
+                            }).then(result => {
+                            if (result.isConfirmed) {
+                                $('#billDetailsModal').modal('show');
+                                $('#priceText').hide();
+                                $('#priceInput').removeClass('d-none').focus();
+                                $('#editPrice').hide();
+                                $('#savePrice, #cancelPrice').removeClass('d-none');
+                            } else {
+                                $('#billDetailsModal').modal('show');
+                            }
+                            });
+                        });
+
+                        // Save Quantity
+                        $(document).off('click', '#saveQuantity').on('click', '#saveQuantity', function (e) {
+                            e.preventDefault();
+                            const newQty = $('#quantityInput').val();
+                            const priceId = $('#priceInput').data('price-id') || $('#saveQuantity').data('price-id');
+
+                            if (!priceId || isNaN(newQty)) {
+                                alert('Invalid quantity or price ID');
                                 return;
                             }
 
-                            const formData = new URLSearchParams();
-                            formData.append('admin_password', password);
-
-                            return fetch('assets/php/table-helper/verify_admin_password.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
+                            $.ajax({
+                                url: 'assets/php/table-helper/update_bill_quantity.php',
+                                type: 'POST',
+                                data: {
+                                    price_id: priceId,
+                                    quantity: newQty
                                 },
-                                body: formData
-                            })
-                            .then(res => res.json())
-                            .then(res => {
-                                if (res.status !== 'success') {
-                                    throw new Error(res.message || 'Invalid password');
+                                dataType: 'json',
+                                success: function (res) {
+                                    if (res.status === 'success') {
+                                        $('#quantityText').text(newQty).show();
+                                        $('#quantityInput').addClass('d-none');
+                                        $('#saveQuantity, #cancelQuantity').addClass('d-none');
+                                        $('#editQuantity').show();
+                                        showNotification('success', res.message);
+                                    } else {
+                                        showNotification('error', res.message);
+                                    }
+                                },
+                                error: function (xhr) {
+                                    showNotification('error', 'Failed to update quantity');
+                                    console.error(xhr.responseText);
                                 }
-                                return true;
-                            })
-                            .catch(err => Swal.showValidationMessage(err.message));
-                        },
-                        allowOutsideClick: () => !Swal.isLoading()
-                        }).then(result => {
-                        if (result.isConfirmed) {
-                            $('#billDetailsModal').modal('show');
-                            $('#quantityText').hide();
-                            $('#quantityInput').removeClass('d-none').focus();
-                            $('#editQuantity').hide();
-                            $('#saveQuantity, #cancelQuantity').removeClass('d-none');
-                        } else {
-                            $('#billDetailsModal').modal('show');
-                        }
+                            });
                         });
-                    });
 
-                    $('#editPrice').on('click', () => {
-                        $('#billDetailsModal').modal('hide');
-                        Swal.fire({
-                        title: 'Enter Admin Password',
-                        input: 'password',
-                        inputLabel: 'Password',
-                        inputPlaceholder: 'Enter admin password',
-                        inputAttributes: { autocapitalize: 'off', autocorrect: 'off' },
-                        showCancelButton: true,
-                        confirmButtonText: 'Confirm',
-                        showLoaderOnConfirm: true,
-                        preConfirm: (password) => {
-                            if (!password) {
-                                Swal.showValidationMessage('Password is required');
+
+                        // Cancel Quantity
+                        $(document).off('click', '#cancelQuantity').on('click', '#cancelQuantity', function (e) {
+                            e.preventDefault();
+                            const originalQty = $('#quantityText').text();
+                            $('#quantityInput').val(originalQty).addClass('d-none');
+                            $('#quantityText').show();
+                            $('#saveQuantity, #cancelQuantity').addClass('d-none');
+                            $('#editQuantity').show();
+                        });
+
+                        // Save Price
+                        $(document).off('click', '#savePrice').on('click', '#savePrice', function (e) {
+                            e.preventDefault();
+                            const newPrice = $('#priceInput').val();
+                            const priceId = $('#priceInput').data('price-id') || $('#savePrice').data('price-id');
+
+                            if (!priceId || isNaN(newPrice)) {
+                                alert('Invalid price or price ID');
                                 return;
                             }
 
-                            const formData = new URLSearchParams();
-                            formData.append('admin_password', password);
-
-                            return fetch('assets/php/table-helper/verify_admin_password.php', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded'
+                            $.ajax({
+                                url: 'assets/php/table-helper/update_bill_price.php',
+                                type: 'POST',
+                                data: {
+                                    price_id: priceId,
+                                    price: newPrice
                                 },
-                                body: formData
-                            })
-                            .then(res => res.json())
-                            .then(res => {
-                                if (res.status !== 'success') {
-                                    throw new Error(res.message || 'Invalid password');
+                                dataType: 'json',
+                                success: function (res) {
+                                    if (res.status === 'success') {
+                                        $('#priceText').text('LKR ' + newPrice).show();
+                                        $('#priceInput').addClass('d-none');
+                                        $('#savePrice, #cancelPrice').addClass('d-none');
+                                        $('#editPrice').show();
+                                        showNotification('success', res.message);
+                                    } else {
+                                        showNotification('error', res.message);
+                                    }
+                                },
+                                error: function (xhr) {
+                                    showNotification('error', 'Failed to update price');
+                                    console.error(xhr.responseText);
                                 }
-                                return true;
-                            })
-                            .catch(err => Swal.showValidationMessage(err.message));
-                        },
-                        allowOutsideClick: () => !Swal.isLoading()
-                        }).then(result => {
-                        if (result.isConfirmed) {
-                            $('#billDetailsModal').modal('show');
-                            $('#priceText').hide();
-                            $('#priceInput').removeClass('d-none').focus();
-                            $('#editPrice').hide();
-                            $('#savePrice, #cancelPrice').removeClass('d-none');
-                        } else {
-                            $('#billDetailsModal').modal('show');
-                        }
-                        });
-                    });
-
-                    // Save Quantity
-                    $(document).off('click', '#saveQuantity').on('click', '#saveQuantity', function (e) {
-                        e.preventDefault();
-                        const newQty = $('#quantityInput').val();
-                        const priceId = $('#priceInput').data('price-id') || $('#saveQuantity').data('price-id');
-
-                        if (!priceId || isNaN(newQty)) {
-                            alert('Invalid quantity or price ID');
-                            return;
-                        }
-
-                        $.ajax({
-                            url: 'assets/php/table-helper/update_bill_quantity.php',
-                            type: 'POST',
-                            data: {
-                                price_id: priceId,
-                                quantity: newQty
-                            },
-                            dataType: 'json',
-                            success: function (res) {
-                                if (res.status === 'success') {
-                                    $('#quantityText').text(newQty).show();
-                                    $('#quantityInput').addClass('d-none');
-                                    $('#saveQuantity, #cancelQuantity').addClass('d-none');
-                                    $('#editQuantity').show();
-                                    showNotification('success', res.message);
-                                } else {
-                                    showNotification('error', res.message);
-                                }
-                            },
-                            error: function (xhr) {
-                                showNotification('error', 'Failed to update quantity');
-                                console.error(xhr.responseText);
-                            }
-                        });
-                    });
+                            });
 
 
-                    // Cancel Quantity
-                    $(document).off('click', '#cancelQuantity').on('click', '#cancelQuantity', function (e) {
-                        e.preventDefault();
-                        const originalQty = $('#quantityText').text();
-                        $('#quantityInput').val(originalQty).addClass('d-none');
-                        $('#quantityText').show();
-                        $('#saveQuantity, #cancelQuantity').addClass('d-none');
-                        $('#editQuantity').show();
-                    });
-
-                    // Save Price
-                    $(document).off('click', '#savePrice').on('click', '#savePrice', function (e) {
-                        e.preventDefault();
-                        const newPrice = $('#priceInput').val();
-                        const priceId = $('#priceInput').data('price-id') || $('#savePrice').data('price-id');
-
-                        if (!priceId || isNaN(newPrice)) {
-                            alert('Invalid price or price ID');
-                            return;
-                        }
-
-                        $.ajax({
-                            url: 'assets/php/table-helper/update_bill_price.php',
-                            type: 'POST',
-                            data: {
-                                price_id: priceId,
-                                price: newPrice
-                            },
-                            dataType: 'json',
-                            success: function (res) {
-                                if (res.status === 'success') {
-                                    $('#priceText').text('LKR ' + newPrice).show();
-                                    $('#priceInput').addClass('d-none');
-                                    $('#savePrice, #cancelPrice').addClass('d-none');
-                                    $('#editPrice').show();
-                                    showNotification('success', res.message);
-                                } else {
-                                    showNotification('error', res.message);
-                                }
-                            },
-                            error: function (xhr) {
-                                showNotification('error', 'Failed to update price');
-                                console.error(xhr.responseText);
-                            }
-                        });
+                                    
                     });
 
 

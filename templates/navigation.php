@@ -60,15 +60,11 @@
                         </ul>
                     </li> 
                     <li class="nxl-item nxl-hasmenu">
-                        <a href="javascript:void(0);" class="nxl-link">
+                        <a href="sales-reports.php" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-dollar-sign"></i></span>
-                            <span class="nxl-mtext">Payment</span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
+                            <span class="nxl-mtext">Sales Reports</span>
                         </a>
-                        <ul class="nxl-submenu">
-                            <li class="nxl-item"><a class="nxl-link" href="payment.html">Payment</a></li>
-                            <li class="nxl-item"><a class="nxl-link" href="invoice-view.html">Invoice View</a></li>
-                            <li class="nxl-item"><a class="nxl-link" href="invoice-create.html">Invoice Create</a></li>
-                        </ul>
+                       
                     </li>
                     <li class="nxl-item nxl-hasmenu">
                         <a href="javascript:void(0);" class="nxl-link">
@@ -81,8 +77,14 @@
                             <li class="nxl-item"><a class="nxl-link" href="customers-create.html">Customers Create</a></li>
                         </ul>
                     </li>                
-                    <li class="nxl-item nxl-hasmenu">
+                    <!-- <li class="nxl-item nxl-hasmenu">
                         <a href="javascript:void(0);" class="nxl-link protected-link" data-target-url="settings-general.php">
+                            <span class="nxl-micon"><i class="feather-settings"></i></span>
+                            <span class="nxl-mtext">Settings</span>
+                        </a>
+                    </li> -->
+                    <li class="nxl-item nxl-hasmenu">
+                        <a href="settings-general.php" class="nxl-link">
                             <span class="nxl-micon"><i class="feather-settings"></i></span>
                             <span class="nxl-mtext">Settings</span>
                         </a>
